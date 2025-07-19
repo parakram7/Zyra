@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zyra - Donate Your Medicine, Save Lives</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Zyra</h1>
+        <p class="tagline">Donate Your Medicine, Save Lives</p>
+    </header>
+    <main>
+        <section class="donation-form">
+            <h2>Donate Medicine</h2>
+            <form id="medicineForm">
+                <label for="photo">Medicine Photo</label>
+                <input type="file" id="photo" accept="image/*" required>
+
+                <label for="name">Medicine Name</label>
+                <input type="text" id="name" required>
+
+                <label for="expiry">Expiry Date</label>
+                <input type="date" id="expiry" required>
+
+                <label for="location">Pickup Location (optional)</label>
+                <textarea id="location" rows="3" placeholder="Enter address or meetup location"></textarea>
+
+                <button type="submit">Submit</button>
+            </form>
+            <p id="confirmation" class="hidden">Thank you! Your medicine listing has been submitted.</p>
+        </section>
+
+        <section class="why-donate">
+            <h2>Why Donate?</h2>
+            <ul>
+                <li>Unsafe disposal of medicines pollutes water and harms ecosystems.</li>
+                <li>Donating can help the underprivileged access essential healthcare.</li>
+                <li>Helps reduce medical waste and work toward sustainability.</li>
+            </ul>
+        </section>
+    </main>
+    <footer>
+        <p class="mission">Our mission is to connect unused medicines with those in need.</p>
+        <div class="socials">
+            <span class="icon">[FB]</span>
+            <span class="icon">[TW]</span>
+            <span class="icon">[IG]</span>
+        </div>
+        <p class="contact">Contact us: <a href="mailto:donate@zyra.org">donate@zyra.org</a></p>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>
