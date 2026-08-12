@@ -49,7 +49,7 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
               {team.shortName}
             </div>
             <div className="pb-1">
-              <h2 className="font-display text-xl font-extrabold text-white">{team.name}</h2>
+              <h2 className="font-display text-xl font-bold text-ink-50">{team.name}</h2>
               <p className="flex items-center gap-1 text-xs text-ink-400">
                 <MapPin size={11} /> {team.city} · {team.homeGround}
               </p>
@@ -70,7 +70,7 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
 
       {(live.length > 0 || upcoming.length > 0) && (
         <div className="mb-6">
-          <h2 className="mb-3 font-display text-lg font-bold text-white">Fixtures</h2>
+          <h2 className="mb-3 font-display text-lg font-semibold text-ink-50">Fixtures</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {live.map((m) => (
               <MatchCard key={m.id} match={m} />
@@ -104,7 +104,7 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
                       <Link
                         key={p.id}
                         href={`/players/${p.id}`}
-                        className="flex items-center gap-3 rounded-xl border border-ink-700/50 bg-ink-900/50 px-3 py-2.5 transition-colors hover:border-ink-500/60"
+                        className="flex items-center gap-3 rounded-xl border border-ink-700/40 bg-ink-850 px-3 py-2.5 transition-colors hover:border-ink-600"
                       >
                         <span className="w-5 text-center font-display text-xs font-bold text-ink-500">
                           {p.shirtNumber}
@@ -130,7 +130,7 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
 
       {completed.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold text-white">
+          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink-50">
             <CalendarDays size={17} /> Recent Results
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">

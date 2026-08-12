@@ -116,15 +116,15 @@ function TeamLineupEditor({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between rounded-2xl border border-ink-700/50 bg-ink-900/60 px-4 py-3">
+      <div className="flex items-center justify-between rounded-2xl border border-ink-700/40 bg-ink-850 px-4 py-3">
         <div className="flex items-center gap-3">
           <TeamCrest team={team} size="sm" />
-          <span className="font-display text-sm font-bold text-white">{team.name}</span>
+          <span className="font-display text-sm font-semibold text-ink-50">{team.name}</span>
         </div>
         <span
           className={cn(
             "font-display text-sm font-bold tabular-nums",
-            startersFull ? "text-volt-300" : "text-ink-400"
+            startersFull ? "text-brand-400" : "text-ink-400"
           )}
         >
           {starters.length}/11
@@ -145,7 +145,7 @@ function TeamLineupEditor({
               onClick={() => cyclePlayer(p.id)}
               className={cn(
                 "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors tap-target",
-                state === "starter" && "border-volt-300/50 bg-volt-300/[0.08]",
+                state === "starter" && "border-brand-300/50 bg-brand-300/[0.08]",
                 state === "sub" && "border-sky-500/40 bg-sky-500/[0.06]",
                 state === "out" && "border-ink-700/50 bg-ink-900/40 opacity-60"
               )}
@@ -159,7 +159,7 @@ function TeamLineupEditor({
                 <p className="text-[11px] text-ink-500">{p.position}</p>
               </div>
               {state === "starter" && (
-                <span className="rounded-full bg-volt-300/20 px-2 py-0.5 text-[10px] font-bold text-volt-300">
+                <span className="rounded-full bg-brand-300/20 px-2 py-0.5 text-[10px] font-bold text-brand-400">
                   XI
                 </span>
               )}
@@ -175,7 +175,7 @@ function TeamLineupEditor({
 
       {starters.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h3 className="flex items-center gap-2 font-display text-sm font-bold text-white">
+          <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-ink-50">
             <Users size={15} /> Positions, Captain &amp; Goalkeeper
           </h3>
           <div className="flex flex-col gap-2">
@@ -206,7 +206,7 @@ function TeamLineupEditor({
                   title="Set as captain"
                   className={cn(
                     "tap-target flex h-8 w-8 items-center justify-center rounded-full",
-                    captainId === p.id ? "bg-volt-300 text-ink-950" : "bg-ink-800 text-ink-500"
+                    captainId === p.id ? "bg-brand-300 text-ink-950" : "bg-ink-800 text-ink-500"
                   )}
                 >
                   <Crown size={14} />
@@ -282,11 +282,11 @@ export default function MatchSetupPage({ params }: { params: { id: string } }) {
               onClick={() => setActiveTab(side)}
               className={cn(
                 "flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors tap-target",
-                activeTab === side ? "bg-ink-800 text-white" : "bg-ink-900/50 text-ink-400"
+                activeTab === side ? "bg-ink-800 text-ink-50" : "bg-ink-900/50 text-ink-400"
               )}
             >
               {t.shortName}
-              {ready && <Check size={14} className="text-volt-300" />}
+              {ready && <Check size={14} className="text-brand-400" />}
             </button>
           );
         })}

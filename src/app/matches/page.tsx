@@ -49,10 +49,10 @@ export default function MatchesPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors tap-target",
+              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors tap-target",
               tab === t.key
-                ? "bg-volt-300 text-ink-950"
-                : "bg-ink-800/70 text-ink-300 hover:text-white"
+                ? "bg-ink-100 text-ink-900"
+                : "bg-ink-800/70 text-ink-300 hover:text-ink-50"
             )}
           >
             {t.label}

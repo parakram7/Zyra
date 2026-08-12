@@ -22,16 +22,18 @@ function LineupPlayerRow({
   return (
     <Link
       href={`/players/${player.id}`}
-      className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-ink-800/50"
+      className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-ink-800/60"
     >
-      <span className="w-5 shrink-0 text-center text-[11px] font-bold text-ink-500">
+      <span className="w-5 shrink-0 text-center text-[11px] font-semibold tabular-nums text-ink-500">
         {player.shirtNumber}
       </span>
       <PlayerAvatar name={player.name} size="xs" />
-      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-100">{player.name}</span>
-      {isCaptain && <Crown size={12} className="shrink-0 text-volt-300" />}
+      <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink-100">{player.name}</span>
+      {isCaptain && <Crown size={12} className="shrink-0 text-brand-400" />}
       {isGoalkeeper && <Hand size={12} className="shrink-0 text-sky-400" />}
-      <span className="w-7 shrink-0 text-right text-[10px] font-semibold text-ink-500">{slot.position}</span>
+      <span className="w-8 shrink-0 rounded-md bg-ink-800 py-0.5 text-center text-[10px] font-semibold text-ink-400">
+        {slot.position}
+      </span>
     </Link>
   );
 }
@@ -45,9 +47,9 @@ export function LineupList({ lineup, title }: { lineup: TeamLineup | null; title
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div>
-        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
           {title} · Starting XI
         </p>
         <div className="flex flex-col gap-0.5">
@@ -62,8 +64,8 @@ export function LineupList({ lineup, title }: { lineup: TeamLineup | null; title
         </div>
       </div>
       {lineup.substitutes.length > 0 && (
-        <div>
-          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-500">Substitutes</p>
+        <div className="border-t border-ink-800 pt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">Substitutes</p>
           <div className="flex flex-col gap-0.5">
             {lineup.substitutes.map((playerId) => (
               <LineupPlayerRow

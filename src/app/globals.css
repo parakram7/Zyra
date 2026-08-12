@@ -12,8 +12,8 @@
   body {
     @apply bg-ink-950 text-ink-50 antialiased;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(200, 251, 77, 0.07), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(91, 178, 255, 0.05), transparent);
+      radial-gradient(ellipse 70% 45% at 50% -10%, rgba(16, 185, 129, 0.035), transparent),
+      radial-gradient(ellipse 55% 35% at 100% 0%, rgba(59, 130, 246, 0.03), transparent);
     background-attachment: fixed;
   }
 }
@@ -41,6 +41,6 @@
 }
 
 ::selection {
-  background: rgba(200, 251, 77, 0.3);
+  background: rgba(16, 185, 129, 0.3);
   color: white;
 }

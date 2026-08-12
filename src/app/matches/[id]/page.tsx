@@ -58,14 +58,14 @@ export default function MatchDetailPage({ params }: { params: { id: string } }) 
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <Link href={`/teams/${home.id}`} className="flex flex-col items-center gap-2.5 text-center">
               <TeamCrest team={home} size="xl" />
-              <span className="text-sm font-bold text-white">{home.name}</span>
+              <span className="text-sm font-semibold text-ink-50">{home.name}</span>
             </Link>
 
             <div className="flex flex-col items-center px-2">
               {match.status === "SCHEDULED" ? (
-                <span className="font-display text-2xl font-extrabold text-ink-400">VS</span>
+                <span className="font-display text-2xl font-bold text-ink-400">VS</span>
               ) : (
-                <span className="font-display text-5xl font-extrabold tabular-nums text-white">
+                <span className="font-display text-5xl font-bold tabular-nums text-ink-50">
                   {match.score.home}–{match.score.away}
                 </span>
               )}
@@ -73,7 +73,7 @@ export default function MatchDetailPage({ params }: { params: { id: string } }) 
 
             <Link href={`/teams/${away.id}`} className="flex flex-col items-center gap-2.5 text-center">
               <TeamCrest team={away} size="xl" />
-              <span className="text-sm font-bold text-white">{away.name}</span>
+              <span className="text-sm font-semibold text-ink-50">{away.name}</span>
             </Link>
           </div>
 
@@ -118,12 +118,12 @@ export default function MatchDetailPage({ params }: { params: { id: string } }) 
       {match.status === "COMPLETED" && potm && (
         <Card className="mb-6">
           <CardBody className="flex items-center gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-volt-300/15">
-              <Trophy size={20} className="text-volt-300" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cardyellow/15">
+              <Trophy size={20} className="text-cardyellow" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-500">Player of the Match</p>
-              <p className="truncate font-display text-base font-bold text-white">{potm.player.name}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">Player of the Match</p>
+              <p className="truncate font-display text-base font-semibold text-ink-50">{potm.player.name}</p>
               <p className="text-xs text-ink-400">
                 {potm.stats.goals > 0 && `${potm.stats.goals} goal${potm.stats.goals > 1 ? "s" : ""}`}
                 {potm.stats.goals > 0 && potm.stats.assists > 0 && " · "}

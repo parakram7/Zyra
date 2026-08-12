@@ -18,13 +18,13 @@ export default function CompetitionsPage() {
           <Link
             key={comp.id}
             href={`/competitions/${comp.id}`}
-            className="flex items-center gap-4 rounded-2xl border border-ink-700/50 bg-ink-900/60 p-5 transition-colors hover:border-ink-500/60"
+            className="flex items-center gap-4 rounded-2xl border border-ink-700/40 bg-ink-850 p-5 transition-colors hover:border-ink-500/60"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-volt-300/15">
-              <Trophy size={22} className="text-volt-300" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-300/15">
+              <Trophy size={22} className="text-brand-400" />
             </div>
             <div className="min-w-0">
-              <p className="truncate font-display text-base font-bold text-white">{comp.name}</p>
+              <p className="truncate font-display text-base font-semibold text-ink-50">{comp.name}</p>
               <p className="text-xs text-ink-400">
                 {comp.season} · {comp.teamIds.length} teams
               </p>

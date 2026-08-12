@@ -44,15 +44,15 @@ export function Sheet({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
             transition={{ type: "spring", damping: 32, stiffness: 340 }}
-            className={`relative z-10 max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border-t border-ink-600/60 bg-ink-900 pb-[env(safe-area-inset-bottom)] shadow-2xl md:max-h-[85vh] md:rounded-3xl md:border ${
+            className={`relative z-10 max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border-t border-ink-700/60 bg-ink-900 pb-[env(safe-area-inset-bottom)] shadow-elevated md:max-h-[85vh] md:rounded-3xl md:border ${
               wide ? "md:max-w-xl" : "md:max-w-md"
             }`}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-700/60 bg-ink-900/95 px-5 py-4 backdrop-blur">
-              <h2 className="font-display text-base font-bold text-white">{title}</h2>
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-700/50 bg-ink-900/95 px-5 py-4 backdrop-blur">
+              <h2 className="font-display text-base font-semibold text-ink-50">{title}</h2>
               <button
                 onClick={onClose}
-                className="tap-target flex h-8 w-8 items-center justify-center rounded-full bg-ink-800 text-ink-300 hover:text-white"
+                className="tap-target flex h-8 w-8 items-center justify-center rounded-full bg-ink-800 text-ink-300 hover:text-ink-50"
               >
                 <X size={16} />
               </button>

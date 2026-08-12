@@ -3,11 +3,11 @@ import { forwardRef } from "react";
 import type { ButtonHTMLAttributes } from "react";
 
 const variants = {
-  primary: "bg-volt-300 text-ink-950 hover:bg-volt-200 shadow-glow active:scale-[0.98]",
-  secondary: "bg-ink-800 text-ink-50 hover:bg-ink-700 active:scale-[0.98]",
+  primary: "bg-brand-600 text-white hover:bg-brand-500 active:bg-brand-700 shadow-card active:scale-[0.98]",
+  secondary: "bg-ink-800 text-ink-50 border border-ink-700 hover:bg-ink-700 active:scale-[0.98]",
   outline: "border border-ink-600 text-ink-100 hover:bg-ink-800 active:scale-[0.98]",
   ghost: "text-ink-200 hover:bg-ink-800/70 active:scale-[0.98]",
-  danger: "bg-cardred/15 text-cardred hover:bg-cardred/25 active:scale-[0.98]",
+  danger: "bg-cardred/10 text-cardred border border-cardred/20 hover:bg-cardred/15 active:scale-[0.98]",
 };
 
 const sizes = {

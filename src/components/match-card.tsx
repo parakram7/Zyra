@@ -22,8 +22,8 @@ export function MatchCard({ match, className }: { match: Match; className?: stri
     <Link
       href={`/matches/${match.id}`}
       className={cn(
-        "block rounded-2xl border border-ink-700/50 bg-ink-900/60 p-4 shadow-card transition-colors hover:border-ink-500/60 active:scale-[0.99]",
-        match.status === "LIVE" && "border-live/30 bg-gradient-to-b from-live/[0.06] to-ink-900/60",
+        "block rounded-2xl border border-ink-700/40 bg-ink-850 p-4 shadow-card transition-colors hover:border-ink-600 active:scale-[0.99]",
+        match.status === "LIVE" && "border-live/25 bg-gradient-to-b from-live/[0.06] to-ink-850",
         className
       )}
     >
@@ -44,7 +44,7 @@ export function MatchCard({ match, className }: { match: Match; className?: stri
           {match.status === "SCHEDULED" ? (
             <span className="font-display text-lg font-bold text-ink-400">VS</span>
           ) : (
-            <span className="font-display text-2xl font-extrabold tabular-nums text-white">
+            <span className="font-display text-2xl font-bold tabular-nums text-ink-50">
               {match.score.home}&nbsp;–&nbsp;{match.score.away}
             </span>
           )}

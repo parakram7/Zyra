@@ -22,11 +22,11 @@ export default function TeamsPage() {
             <Link
               key={team.id}
               href={`/teams/${team.id}`}
-              className="flex items-center gap-4 rounded-2xl border border-ink-700/50 bg-ink-900/60 p-4 transition-colors hover:border-ink-500/60"
+              className="flex items-center gap-4 rounded-2xl border border-ink-700/40 bg-ink-850 p-4 transition-colors hover:border-ink-500/60"
             >
               <TeamCrest team={team} size="lg" />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-base font-bold text-white">{team.name}</p>
+                <p className="truncate font-display text-base font-semibold text-ink-50">{team.name}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400">
                   <MapPin size={11} /> {team.city} · {team.category}
                 </p>

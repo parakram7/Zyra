@@ -31,12 +31,12 @@ export function TeamPicker({
           className={cn(
             "flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-colors tap-target",
             value === t.id
-              ? "border-volt-300 bg-volt-300/10"
+              ? "border-brand-300 bg-brand-300/10"
               : "border-ink-700/60 bg-ink-800/40 hover:border-ink-500"
           )}
         >
           <TeamCrest team={t} size="lg" />
-          <span className="text-sm font-bold text-ink-50">{t.shortName}</span>
+          <span className="text-sm font-semibold text-ink-50">{t.shortName}</span>
         </button>
       ))}
     </div>
@@ -70,7 +70,7 @@ export function PlayerGrid({
           className={cn(
             "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors tap-target",
             value === p.id
-              ? "border-volt-300 bg-volt-300/10"
+              ? "border-brand-300 bg-brand-300/10"
               : "border-ink-700/50 bg-ink-800/40 hover:border-ink-500"
           )}
         >
@@ -98,7 +98,7 @@ export function MinuteStepper({ value, onChange }: { value: number; onChange: (v
         <Minus size={18} />
       </button>
       <div className="flex flex-col items-center">
-        <span className="font-display text-3xl font-extrabold tabular-nums text-white">{value}&apos;</span>
+        <span className="font-display text-3xl font-bold tabular-nums text-ink-50">{value}&apos;</span>
         <span className="text-[10px] uppercase tracking-wide text-ink-500">Minute</span>
       </div>
       <button

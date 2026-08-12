@@ -25,18 +25,29 @@ function LiveEventRow({ event, onEdit }: { event: MatchEvent; onEdit: (e: MatchE
     );
   }
 
+  const iconBg =
+    event.type === "GOAL"
+      ? "bg-brand-500/15"
+      : event.type === "OWN_GOAL"
+        ? "bg-ink-600/40"
+        : event.type === "YELLOW_CARD"
+          ? "bg-cardyellow/15"
+          : event.type === "RED_CARD"
+            ? "bg-cardred/15"
+            : "bg-sky-500/15";
+
   return (
     <button
       onClick={() => onEdit(event)}
-      className="flex w-full items-center gap-3 rounded-xl border border-ink-700/40 bg-ink-900/50 px-3.5 py-3 text-left transition-colors hover:border-ink-500/60 tap-target"
+      className="flex w-full items-center gap-3 rounded-xl border border-ink-700/40 bg-ink-850 px-3.5 py-3 text-left transition-colors hover:border-ink-600 tap-target"
     >
-      <span className="w-9 shrink-0 font-display text-sm font-bold tabular-nums text-ink-300">
+      <span className="w-9 shrink-0 font-display text-sm font-semibold tabular-nums text-ink-300">
         {event.minute}&apos;
       </span>
 
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-800">
-        {event.type === "GOAL" && <FootballIcon size={13} className="text-volt-300" />}
-        {event.type === "OWN_GOAL" && <FootballIcon size={13} className="text-ink-400" />}
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
+        {event.type === "GOAL" && <FootballIcon size={13} className="text-brand-400" />}
+        {event.type === "OWN_GOAL" && <FootballIcon size={13} className="text-ink-300" />}
         {(event.type === "YELLOW_CARD" || event.type === "RED_CARD") && <CardIcon type={event.type} />}
         {event.type === "SUBSTITUTION" && <ArrowLeftRight size={13} className="text-sky-400" />}
       </span>

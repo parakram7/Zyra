@@ -60,12 +60,13 @@ export function CardSheet({
               type="button"
               onClick={() => setCardType(type)}
               className={cn(
-                "flex items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors tap-target",
+                "flex items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-semibold transition-colors tap-target",
                 cardType === type
-                  ? "border-current bg-current/10"
+                  ? type === "YELLOW_CARD"
+                    ? "border-cardyellow/60 bg-cardyellow/10 text-cardyellow"
+                    : "border-cardred/60 bg-cardred/10 text-cardred"
                   : "border-ink-700/60 text-ink-400"
               )}
-              style={cardType === type ? { color: type === "YELLOW_CARD" ? "#ffc53d" : "#ff4d5e" } : undefined}
             >
               <CardIcon type={type} size={16} />
               {type === "YELLOW_CARD" ? "Yellow" : "Red"}

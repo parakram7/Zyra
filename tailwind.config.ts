@@ -10,53 +10,63 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Dark navy/slate neutral scale — the app's primary surface system.
+        // 950 = page background, 800/850 = card surfaces, 700/600 = borders,
+        // 50/100 = primary text, 300/400 = secondary/muted text.
         ink: {
-          950: "#08090b",
-          900: "#0c0e11",
-          850: "#111318",
-          800: "#15181e",
-          700: "#1c2027",
-          600: "#262b34",
-          500: "#343b46",
-          400: "#565f6d",
-          300: "#7b8492",
-          200: "#a7adb8",
-          100: "#d3d6dc",
-          50: "#f3f4f6",
+          950: "#0a0e17",
+          900: "#0e1420",
+          850: "#121a2a",
+          800: "#172033",
+          700: "#222c42",
+          600: "#2d3750",
+          500: "#454f6b",
+          400: "#636e89",
+          300: "#8892ab",
+          200: "#b0b7c9",
+          100: "#d3d7e2",
+          50: "#f5f6f9",
         },
-        volt: {
-          50: "#f6ffe0",
-          100: "#ecffb8",
-          200: "#ddff85",
-          300: "#c8fb4d",
-          400: "#b3f224",
-          500: "#9be000",
-          600: "#7cb800",
-          700: "#5e8c00",
-          800: "#3f5f00",
-          900: "#233400",
+        // Primary brand accent — restrained football/emerald green.
+        brand: {
+          50: "#ecfdf5",
+          100: "#d1fae5",
+          200: "#a7f3d0",
+          300: "#6ee7b7",
+          400: "#34d399",
+          500: "#10b981",
+          600: "#059669",
+          700: "#047857",
+          800: "#065f46",
+          900: "#064e3b",
         },
+        // Secondary accent — subtle steel blue (assists, secondary info).
         sky: {
-          400: "#5fb2ff",
-          500: "#3b93f0",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#3b82f6",
+          600: "#2563eb",
         },
-        cardyellow: "#ffc53d",
-        cardred: "#ff4d5e",
-        live: "#ff3b57",
+        cardyellow: "#f2a93b",
+        cardred: "#ef4444",
+        live: "#ef4444",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         display: ["var(--font-sora)", "system-ui", "sans-serif"],
       },
+      borderRadius: {
+        xl: "0.875rem",
+        "2xl": "1.125rem",
+        "3xl": "1.5rem",
+      },
       boxShadow: {
-        glow: "0 0 0 1px rgba(200,251,77,0.15), 0 8px 30px -8px rgba(200,251,77,0.25)",
-        card: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 8px 24px -12px rgba(0,0,0,0.6)",
+        card: "0 1px 0 0 rgba(255,255,255,0.025) inset, 0 10px 24px -14px rgba(0,0,0,0.55)",
+        elevated: "0 24px 60px -18px rgba(0,0,0,0.6)",
       },
       backgroundImage: {
         "grid-fade":
-          "radial-gradient(circle at 50% 0%, rgba(200,251,77,0.08), transparent 60%)",
-        "pitch-lines":
-          "linear-gradient(180deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
+          "radial-gradient(circle at 50% 0%, rgba(16,185,129,0.05), transparent 60%)",
       },
       animation: {
         "pulse-live": "pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",

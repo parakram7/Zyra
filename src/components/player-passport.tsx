@@ -79,7 +79,7 @@ export function PlayerPassport({
             </div>
           </div>
 
-          <h2 className="mt-3 font-display text-2xl font-extrabold tracking-tight text-white">
+          <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-ink-50">
             {player.name}
           </h2>
           <Link href={`/teams/${team.id}`} className="mt-1 flex items-center gap-1.5 text-sm text-ink-400 hover:text-ink-200">
@@ -135,7 +135,7 @@ export function PlayerPassport({
                         <span className="ml-1.5 text-ink-500">{competition.season}</span>
                       </td>
                       <td className="py-2.5 text-center tabular-nums text-ink-200">{stats.appearances}</td>
-                      <td className="py-2.5 text-center tabular-nums font-bold text-volt-300">{stats.goals}</td>
+                      <td className="py-2.5 text-center tabular-nums font-bold text-brand-400">{stats.goals}</td>
                       <td className="py-2.5 text-center tabular-nums text-ink-200">{stats.assists}</td>
                       <td className="py-2.5 text-center tabular-nums text-ink-200">{stats.yellowCards}</td>
                       <td className="py-2.5 text-center tabular-nums text-ink-200">{stats.redCards}</td>
@@ -204,7 +204,7 @@ function MatchStatRow({
       </div>
       <div className="flex items-center gap-2">
         {stats.goals > 0 && (
-          <span className="flex items-center gap-1 text-xs font-bold text-volt-300">
+          <span className="flex items-center gap-1 text-xs font-bold text-brand-400">
             <FootballIcon size={11} /> {stats.goals}
           </span>
         )}

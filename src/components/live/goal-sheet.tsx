@@ -68,7 +68,7 @@ export function GoalSheet({
             onClick={() =>
               setStep(step === "scorer" ? "team" : step === "assist" ? "scorer" : "assist")
             }
-            className="flex items-center gap-1 self-start text-xs font-semibold text-ink-400 hover:text-white"
+            className="flex items-center gap-1 self-start text-xs font-semibold text-ink-400 hover:text-ink-50"
           >
             <ChevronLeft size={14} /> Back
           </button>
@@ -124,10 +124,10 @@ export function GoalSheet({
 
         {step === "confirm" && team && (
           <div className="flex flex-col gap-5">
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-volt-300/30 bg-volt-300/[0.06] py-6">
-              <FootballIcon size={28} className="text-volt-300" />
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-brand-300/30 bg-brand-300/[0.06] py-6">
+              <FootballIcon size={28} className="text-brand-400" />
               <p className="text-center text-sm text-ink-300">
-                <span className="font-bold text-white">
+                <span className="font-semibold text-ink-50">
                   {players.find((p) => p.id === scorerId)?.name}
                 </span>{" "}
                 for {team.shortName}

@@ -65,7 +65,7 @@ export default function HomePage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <p className="text-sm text-ink-400">Welcome back,</p>
-          <h1 className="font-display text-2xl font-extrabold tracking-tight text-white">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink-50">
             {team.name}
           </h1>
         </div>
@@ -79,15 +79,15 @@ export default function HomePage() {
       {/* Mobile start match CTA */}
       <Link
         href="/matches/new"
-        className="mb-5 flex items-center justify-between rounded-2xl bg-gradient-to-r from-volt-300 to-volt-400 px-5 py-4 text-ink-950 shadow-glow active:scale-[0.99] md:hidden"
+        className="mb-5 flex items-center justify-between rounded-2xl bg-brand-600 px-5 py-4 text-white shadow-card active:scale-[0.99] md:hidden"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ink-950/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
             <FootballIcon size={20} />
           </div>
           <div>
-            <p className="font-display text-base font-extrabold leading-tight">Start Match</p>
-            <p className="text-xs font-medium text-ink-950/70">Set up lineups &amp; go live</p>
+            <p className="font-display text-base font-semibold leading-tight">Start Match</p>
+            <p className="text-xs font-medium text-white/70">Set up lineups &amp; go live</p>
           </div>
         </div>
         <ArrowRight size={18} />
@@ -122,8 +122,8 @@ export default function HomePage() {
         <div className="md:col-span-2">
           {/* Upcoming / recent matches */}
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-white">Matches</h2>
-            <Link href="/matches" className="text-xs font-semibold text-volt-300">
+            <h2 className="font-display text-lg font-semibold text-ink-50">Matches</h2>
+            <Link href="/matches" className="text-xs font-semibold text-brand-400">
               See all
             </Link>
           </div>
@@ -139,19 +139,19 @@ export default function HomePage() {
           {/* Recent performances */}
           {lastMatchPerformers.length > 0 && (
             <div className="mt-8">
-              <h2 className="mb-4 font-display text-lg font-bold text-white">Recent Performances</h2>
+              <h2 className="mb-4 font-display text-lg font-semibold text-ink-50">Recent Performances</h2>
               <div className="grid gap-3 sm:grid-cols-3">
                 {lastMatchPerformers.map(({ player, stats }) => (
                   <Link
                     href={`/players/${player.id}`}
                     key={player.id}
-                    className="flex items-center gap-3 rounded-2xl border border-ink-700/50 bg-ink-900/60 p-4 transition-colors hover:border-ink-500/60"
+                    className="flex items-center gap-3 rounded-2xl border border-ink-700/40 bg-ink-850 p-4 transition-colors hover:border-ink-500/60"
                   >
                     <PlayerAvatar name={player.name} size="md" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-ink-50">{player.name}</p>
                       <p className="mt-0.5 flex items-center gap-2 text-xs text-ink-400">
-                        {stats.goals > 0 && <span className="text-volt-300">{stats.goals}G</span>}
+                        {stats.goals > 0 && <span className="text-brand-400">{stats.goals}G</span>}
                         {stats.assists > 0 && <span className="text-sky-400">{stats.assists}A</span>}
                       </p>
                     </div>
@@ -166,7 +166,7 @@ export default function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>Top Scorers</CardTitle>
-              <TrendingUp size={16} className="text-volt-300" />
+              <TrendingUp size={16} className="text-brand-400" />
             </CardHeader>
             <CardBody className="pt-3">
               <LeaderList rows={topScorers} suffix="G" />
@@ -206,14 +206,14 @@ function LiveScoreRow({
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
       <div className="flex flex-col items-center gap-2">
         <TeamCrest team={homeTeam} size="lg" />
-        <span className="text-sm font-bold text-white">{homeTeam.shortName}</span>
+        <span className="text-sm font-semibold text-ink-50">{homeTeam.shortName}</span>
       </div>
-      <span className="font-display text-4xl font-extrabold tabular-nums text-white">
+      <span className="font-display text-4xl font-bold tabular-nums text-ink-50">
         {home}–{away}
       </span>
       <div className="flex flex-col items-center gap-2">
         <TeamCrest team={awayTeam} size="lg" />
-        <span className="text-sm font-bold text-white">{awayTeam.shortName}</span>
+        <span className="text-sm font-semibold text-ink-50">{awayTeam.shortName}</span>
       </div>
     </div>
   );
@@ -240,7 +240,7 @@ function LeaderList({
           <span className="w-4 text-xs font-bold text-ink-500">{i + 1}</span>
           <PlayerAvatar name={row.player.name} size="sm" />
           <span className="flex-1 truncate text-sm font-medium text-ink-100">{row.player.name}</span>
-          <span className="font-display text-sm font-bold text-volt-300">
+          <span className="font-display text-sm font-bold text-brand-400">
             {row.value}
             <span className="ml-0.5 text-[10px] text-ink-500">{suffix}</span>
           </span>

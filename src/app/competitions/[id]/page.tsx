@@ -40,8 +40,8 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors tap-target",
-              tab === t ? "bg-volt-300 text-ink-950" : "bg-ink-800/70 text-ink-300 hover:text-white"
+              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors tap-target",
+              tab === t ? "bg-ink-100 text-ink-900" : "bg-ink-800/70 text-ink-300 hover:text-ink-50"
             )}
           >
             {t}
@@ -50,7 +50,7 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
       </div>
 
       {tab === "Standings" && (
-        <div className="overflow-x-auto rounded-2xl border border-ink-700/50 bg-ink-900/60">
+        <div className="overflow-x-auto rounded-2xl border border-ink-700/40 bg-ink-850">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-ink-800 text-[11px] uppercase tracking-wide text-ink-500">
@@ -85,7 +85,7 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
                   <td className="py-3 text-center tabular-nums text-ink-300">
                     {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                   </td>
-                  <td className="py-3 pr-4 text-center font-display font-bold tabular-nums text-volt-300">
+                  <td className="py-3 pr-4 text-center font-display font-bold tabular-nums text-brand-400">
                     {row.points}
                   </td>
                 </tr>
@@ -106,7 +106,7 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
       )}
 
       {(tab === "Top Scorers" || tab === "Top Assists") && (
-        <div className="rounded-2xl border border-ink-700/50 bg-ink-900/60 p-2">
+        <div className="rounded-2xl border border-ink-700/40 bg-ink-850 p-2">
           {(tab === "Top Scorers" ? topScorers : topAssists).length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-ink-500">No data yet.</p>
           )}
@@ -122,7 +122,7 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
                 <p className="truncate text-sm font-semibold text-ink-100">{row.player.name}</p>
                 <p className="text-[11px] text-ink-500">{row.team?.name}</p>
               </div>
-              <span className="font-display text-lg font-extrabold tabular-nums text-volt-300">
+              <span className="font-display text-lg font-bold tabular-nums text-brand-400">
                 {row.value}
               </span>
             </Link>

@@ -75,7 +75,7 @@ export function OwnGoalSheet({
           <div className="flex items-center justify-center gap-2 rounded-2xl border border-ink-600/50 bg-ink-800/40 py-4">
             <FootballIcon size={18} className="text-ink-400" />
             <span className="text-sm text-ink-300">
-              Own goal — <span className="font-bold text-white">{players.find((p) => p.id === playerId)?.name}</span>
+              Own goal — <span className="font-semibold text-ink-50">{players.find((p) => p.id === playerId)?.name}</span>
             </span>
           </div>
         )}

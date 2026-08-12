@@ -23,7 +23,7 @@ export function BottomNav() {
   if (pathname.includes("/live")) return null;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-700/60 bg-ink-950/90 backdrop-blur-xl safe-bottom md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-700/50 bg-ink-950/95 backdrop-blur-xl safe-bottom md:hidden">
       <div className="mx-auto flex max-w-lg items-stretch justify-between px-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
@@ -31,17 +31,23 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
-              className="tap-target flex flex-1 flex-col items-center gap-1 py-2.5 pt-3"
+              className="tap-target relative flex flex-1 flex-col items-center gap-1 py-2.5 pt-3"
             >
+              <span
+                className={cn(
+                  "absolute top-0 h-0.5 w-6 rounded-full bg-brand-400 transition-opacity",
+                  active ? "opacity-100" : "opacity-0"
+                )}
+              />
               <Icon
-                size={22}
-                strokeWidth={active ? 2.4 : 1.8}
-                className={cn("transition-colors", active ? "text-volt-300" : "text-ink-400")}
+                size={21}
+                strokeWidth={active ? 2.2 : 1.7}
+                className={cn("transition-colors", active ? "text-brand-400" : "text-ink-400")}
               />
               <span
                 className={cn(
                   "text-[10.5px] font-medium tracking-tight transition-colors",
-                  active ? "text-volt-300" : "text-ink-400"
+                  active ? "text-ink-50" : "text-ink-400"
                 )}
               >
                 {label}
@@ -58,15 +64,15 @@ export function SideNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-ink-700/60 bg-ink-950/70 backdrop-blur-xl md:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-ink-700/50 bg-ink-950 md:flex">
       <div className="flex items-center gap-2.5 px-6 py-7">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-volt-300 to-volt-600 shadow-glow">
-          <Zap size={18} className="text-ink-950" fill="currentColor" strokeWidth={0} />
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
+          <Zap size={16} className="text-white" fill="currentColor" strokeWidth={0} />
         </div>
-        <span className="font-display text-xl font-bold tracking-tight text-white">Zyra</span>
+        <span className="font-display text-lg font-semibold tracking-tight text-ink-50">Zyra</span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 px-3">
+      <nav className="flex flex-1 flex-col gap-0.5 px-3">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
@@ -74,13 +80,19 @@ export function SideNav() {
               key={href}
               href={href}
               className={cn(
-                "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
+                "group relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-volt-300/10 text-volt-300"
+                  ? "bg-brand-500/10 text-ink-50"
                   : "text-ink-300 hover:bg-ink-800/60 hover:text-ink-50"
               )}
             >
-              <Icon size={19} strokeWidth={active ? 2.3 : 1.8} />
+              <span
+                className={cn(
+                  "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand-400 transition-opacity",
+                  active ? "opacity-100" : "opacity-0"
+                )}
+              />
+              <Icon size={18} strokeWidth={active ? 2.1 : 1.7} className={active ? "text-brand-400" : ""} />
               {label}
             </Link>
           );
@@ -90,7 +102,7 @@ export function SideNav() {
       <div className="px-3 pb-6">
         <Link
           href="/matches/new"
-          className="flex items-center justify-center gap-2 rounded-xl bg-volt-300 px-4 py-3 text-sm font-bold text-ink-950 shadow-glow transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-card transition-colors hover:bg-brand-500 active:scale-[0.98]"
         >
           Start Match
         </Link>

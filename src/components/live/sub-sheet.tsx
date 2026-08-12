@@ -64,7 +64,7 @@ export function SubSheet({
         {step !== "team" && (
           <button
             onClick={() => setStep(step === "off" ? "team" : step === "on" ? "off" : "on")}
-            className="flex items-center gap-1 self-start text-xs font-semibold text-ink-400 hover:text-white"
+            className="flex items-center gap-1 self-start text-xs font-semibold text-ink-400 hover:text-ink-50"
           >
             <ChevronLeft size={14} /> Back
           </button>
@@ -111,11 +111,11 @@ export function SubSheet({
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/[0.06] py-6">
               <ArrowLeftRight size={24} className="text-sky-400" />
               <p className="text-center text-sm text-ink-300">
-                <span className="font-bold text-white">
+                <span className="font-semibold text-ink-50">
                   {players.find((p) => p.id === onId)?.name}
                 </span>{" "}
                 on for{" "}
-                <span className="font-bold text-white">
+                <span className="font-semibold text-ink-50">
                   {players.find((p) => p.id === offId)?.name}
                 </span>
               </p>

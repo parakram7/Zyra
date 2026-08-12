@@ -47,17 +47,17 @@ export function LiveHeader({ match }: { match: Match }) {
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="flex flex-col items-center gap-2 text-center">
           <TeamCrest team={home} size="lg" />
-          <span className="text-sm font-bold leading-tight text-white">{home.shortName}</span>
+          <span className="text-sm font-semibold leading-tight text-ink-50">{home.shortName}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1 px-2">
-          <span className="font-display text-5xl font-extrabold tabular-nums leading-none text-white">
+        <div className="flex flex-col items-center gap-1.5 px-2">
+          <span className="font-display text-5xl font-bold tabular-nums leading-none text-ink-50">
             {match.score.home}–{match.score.away}
           </span>
           <button
             onClick={() => (match.clockRunning ? pauseClock(match.id) : resumeClock(match.id))}
             disabled={match.currentHalf === "HT" || match.currentHalf === "FT"}
-            className="mt-1 flex items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1 text-sm font-bold tabular-nums text-ink-100 disabled:opacity-40"
+            className="mt-1 flex items-center gap-1.5 rounded-full bg-ink-800 px-3 py-1 text-sm font-semibold tabular-nums text-ink-200 disabled:opacity-40"
           >
             {match.currentHalf === "HT" || match.currentHalf === "FT" ? (
               minute + "'"
@@ -72,7 +72,7 @@ export function LiveHeader({ match }: { match: Match }) {
 
         <div className="flex flex-col items-center gap-2 text-center">
           <TeamCrest team={away} size="lg" />
-          <span className="text-sm font-bold leading-tight text-white">{away.shortName}</span>
+          <span className="text-sm font-semibold leading-tight text-ink-50">{away.shortName}</span>
         </div>
       </div>
 
@@ -97,7 +97,7 @@ export function LiveHeader({ match }: { match: Match }) {
           disabled={!canUndo}
           className={cn(
             "flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-ink-800 px-3 text-xs font-semibold text-ink-300 disabled:opacity-30",
-            canUndo && "hover:bg-ink-700 hover:text-white"
+            canUndo && "hover:bg-ink-700 hover:text-ink-50"
           )}
         >
           <Undo2 size={14} /> Undo
