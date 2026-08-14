@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { PlayerAvatar, TeamCrest } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/field";
+import { AuthGate } from "@/components/auth-gate";
 import { useMatch, useTeam, useTeamPlayers } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 import type { Player, Position, TeamLineup } from "@/lib/types";
@@ -241,6 +242,14 @@ function TeamLineupEditor({
 }
 
 export default function MatchSetupPage({ params }: { params: { id: string } }) {
+  return (
+    <AuthGate>
+      <MatchSetupPageInner params={params} />
+    </AuthGate>
+  );
+}
+
+function MatchSetupPageInner({ params }: { params: { id: string } }) {
   const router = useRouter();
   const match = useMatch(params.id);
   const homeTeam = useTeam(match?.homeTeamId);

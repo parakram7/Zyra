@@ -16,10 +16,12 @@ export function PlayerPassport({
   playerId,
   title = "Player Passport",
   backHref,
+  belowHeader,
 }: {
   playerId: string;
   title?: string;
   backHref?: string;
+  belowHeader?: React.ReactNode;
 }) {
   const player = usePlayer(playerId);
   const team = useTeam(player?.teamId);
@@ -59,6 +61,7 @@ export function PlayerPassport({
   return (
     <div className="mx-auto max-w-3xl px-4 pt-6 md:px-8 md:pt-10">
       <PageHeader title={title} backHref={backHref} />
+      {belowHeader}
 
       <Card className="mb-6 overflow-hidden">
         <div

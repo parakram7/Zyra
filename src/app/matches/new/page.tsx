@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/field";
+import { AuthGate } from "@/components/auth-gate";
 import { useCompetitions, useTeams } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 import { DEMO_TEAM_ID } from "@/lib/seed-data";
@@ -30,6 +31,14 @@ function defaultDateTime() {
 }
 
 export default function NewMatchPage() {
+  return (
+    <AuthGate>
+      <NewMatchPageInner />
+    </AuthGate>
+  );
+}
+
+function NewMatchPageInner() {
   const router = useRouter();
   const teams = useTeams();
   const competitions = useCompetitions();

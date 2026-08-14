@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, CalendarRange, Shield, Trophy, CircleUserRound, Zap } from "lucide-react";
+import { Home, CalendarRange, Shield, Trophy, CircleUserRound, Zap, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { signOut, useAuthUser } from "@/lib/supabase/auth";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
@@ -99,14 +101,45 @@ export function SideNav() {
         })}
       </nav>
 
-      <div className="px-3 pb-6">
+      <div className="flex flex-col gap-3 px-3 pb-6">
         <Link
           href="/matches/new"
           className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-card transition-colors hover:bg-brand-500 active:scale-[0.98]"
         >
           Start Match
         </Link>
+        <AuthStatus />
       </div>
     </aside>
+  );
+}
+
+function AuthStatus() {
+  const user = useAuthUser();
+  if (!isSupabaseConfigured()) return null;
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium text-ink-300 transition-colors hover:bg-ink-800/60 hover:text-ink-50"
+      >
+        <LogIn size={16} /> Sign in
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg px-3.5 py-2 text-xs text-ink-400">
+      <span className="min-w-0 truncate" title={user.email}>
+        {user.email}
+      </span>
+      <button
+        onClick={() => signOut()}
+        className="tap-target flex shrink-0 items-center gap-1 font-medium text-ink-300 hover:text-ink-50"
+      >
+        <LogOut size={13} /> Out
+      </button>
+    </div>
   );
 }

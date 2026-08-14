@@ -12,10 +12,19 @@ import { CardSheet } from "@/components/live/card-sheet";
 import { SubSheet } from "@/components/live/sub-sheet";
 import { OwnGoalSheet } from "@/components/live/own-goal-sheet";
 import { EditEventSheet } from "@/components/live/edit-event-sheet";
+import { AuthGate } from "@/components/auth-gate";
 import { useLiveMinute, useMatch, usePlayers } from "@/lib/hooks";
 import type { MatchEvent } from "@/lib/types";
 
 export default function LiveMatchPage({ params }: { params: { id: string } }) {
+  return (
+    <AuthGate>
+      <LiveMatchPageInner params={params} />
+    </AuthGate>
+  );
+}
+
+function LiveMatchPageInner({ params }: { params: { id: string } }) {
   const router = useRouter();
   const match = useMatch(params.id);
   const players = usePlayers();

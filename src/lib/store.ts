@@ -1,9 +1,17 @@
 "use client";
 
-// Client-side "database" for the Zyra prototype. Everything here is
-// intentionally shaped like a repository layer (createMatch, addGoalEvent,
-// etc.) so the internals can later be swapped for real Supabase calls
-// without changing any component that consumes `useZyraStore`.
+// Client-side data layer for Zyra. Every mutation is exposed as a
+// repository-style action (createMatch, addGoalEvent, etc.) so components
+// never touch storage directly.
+//
+// Two backends, chosen automatically at runtime:
+//  - Supabase configured (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY set): the
+//    Postgres database is the source of truth. Every action below updates
+//    local state immediately (so the UI never waits on the network) and
+//    fires the matching Supabase write in the background. A realtime
+//    subscription merges changes made by other devices/browsers back in.
+//  - Not configured: falls back to the original local-only demo mode
+//    (seed data + localStorage), unchanged from the prototype.
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -22,6 +30,10 @@ import type {
   Team,
   TeamLineup,
 } from "./types";
+import { isSupabaseConfigured, getSupabase } from "./supabase/client";
+import { fetchAllData } from "./supabase/api";
+import * as remote from "./supabase/api";
+import { matchEventFromRow, matchFromRow } from "./supabase/mappers";
 
 function id(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
@@ -88,6 +100,8 @@ interface ZyraState {
   matches: Match[];
   hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
+  loadFromSupabase: () => Promise<void>;
+  subscribeRealtime: () => () => void;
 
   createMatch: (input: NewMatchInput) => string;
   setLineup: (matchId: string, side: "home" | "away", lineup: TeamLineup) => void;
@@ -109,11 +123,14 @@ interface ZyraState {
   resetDemoData: () => void;
 }
 
-function updateMatch(matches: Match[], matchId: string, fn: (m: Match) => Match): Match[] {
+function applyToMatch(matches: Match[], matchId: string, fn: (m: Match) => Match): Match[] {
   return matches.map((m) => (m.id === matchId ? fn(m) : m));
 }
 
-function pushEvent(match: Match, partial: Omit<MatchEvent, "id" | "matchId" | "createdAt">): Match {
+function pushEvent(
+  match: Match,
+  partial: Omit<MatchEvent, "id" | "matchId" | "createdAt">
+): { match: Match; event: MatchEvent } {
   const event: MatchEvent = {
     ...partial,
     id: id("evt"),
@@ -122,7 +139,17 @@ function pushEvent(match: Match, partial: Omit<MatchEvent, "id" | "matchId" | "c
   };
   const next = { ...match, events: [...match.events, event] };
   next.score = recalcScore(next);
-  return next;
+  return { match: next, event };
+}
+
+function syncMatch(match: Match) {
+  if (!isSupabaseConfigured()) return;
+  remote.updateMatch(match.id, match).catch((err) => console.error("Zyra: failed to sync match", err));
+}
+
+function syncEvent(event: MatchEvent) {
+  if (!isSupabaseConfigured()) return;
+  remote.insertMatchEvent(event).catch((err) => console.error("Zyra: failed to sync event", err));
 }
 
 const UNDOABLE_TYPES: MatchEventType[] = [
@@ -142,6 +169,70 @@ export const useZyraStore = create<ZyraState>()(
       matches: seedMatches,
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
+
+      loadFromSupabase: async () => {
+        const data = await fetchAllData();
+        set({
+          teams: data.teams,
+          players: data.players,
+          competitions: data.competitions,
+          matches: data.matches,
+        });
+      },
+
+      subscribeRealtime: () => {
+        if (!isSupabaseConfigured()) return () => {};
+        const sb = getSupabase();
+
+        const channel = sb
+          .channel("zyra-realtime")
+          .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, (payload) => {
+            if (payload.eventType === "DELETE") {
+              const oldId = (payload.old as { id?: string }).id;
+              if (!oldId) return;
+              set({ matches: get().matches.filter((m) => m.id !== oldId) });
+              return;
+            }
+            const row = payload.new as Record<string, unknown>;
+            const existing = get().matches.find((m) => m.id === row.id);
+            const updated = matchFromRow(row, existing?.events ?? []);
+            const has = get().matches.some((m) => m.id === updated.id);
+            set({
+              matches: has
+                ? applyToMatch(get().matches, updated.id, () => updated)
+                : [...get().matches, updated],
+            });
+          })
+          .on("postgres_changes", { event: "*", schema: "public", table: "match_events" }, (payload) => {
+            if (payload.eventType === "DELETE") {
+              const oldId = (payload.old as { id?: string; match_id?: string }).id;
+              if (!oldId) return;
+              set({
+                matches: get().matches.map((m) => {
+                  if (!m.events.some((e) => e.id === oldId)) return m;
+                  const next = { ...m, events: m.events.filter((e) => e.id !== oldId) };
+                  next.score = recalcScore(next);
+                  return next;
+                }),
+              });
+              return;
+            }
+            const event = matchEventFromRow(payload.new);
+            set({
+              matches: applyToMatch(get().matches, event.matchId, (m) => {
+                const withoutDup = m.events.filter((e) => e.id !== event.id);
+                const next = { ...m, events: [...withoutDup, event] };
+                next.score = recalcScore(next);
+                return next;
+              }),
+            });
+          })
+          .subscribe();
+
+        return () => {
+          sb.removeChannel(channel);
+        };
+      },
 
       createMatch: (input) => {
         const newId = id("match");
@@ -166,207 +257,278 @@ export const useZyraStore = create<ZyraState>()(
           clockBaseMinute: 0,
         };
         set({ matches: [...get().matches, match] });
+        if (isSupabaseConfigured()) {
+          remote.insertMatch(match).catch((err) => console.error("Zyra: failed to sync new match", err));
+        }
         return newId;
       },
 
-      setLineup: (matchId, side, lineup) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => ({
+      setLineup: (matchId, side, lineup) => {
+        const matches = applyToMatch(get().matches, matchId, (m) => ({
+          ...m,
+          ...(side === "home" ? { homeLineup: lineup } : { awayLineup: lineup }),
+        }));
+        set({ matches });
+        if (isSupabaseConfigured()) {
+          remote
+            .setMatchLineup(matchId, side, lineup)
+            .catch((err) => console.error("Zyra: failed to sync lineup", err));
+        }
+      },
+
+      startMatch: (matchId) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const started: Match = {
             ...m,
-            ...(side === "home" ? { homeLineup: lineup } : { awayLineup: lineup }),
-          })),
-        }),
-
-      startMatch: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            const started: Match = {
-              ...m,
-              status: "LIVE",
-              currentHalf: 1,
-              currentMinute: 0,
-              clockRunning: true,
-              clockStartedAt: Date.now(),
-              clockBaseMinute: 0,
-            };
-            return pushEvent(started, {
-              type: "KICK_OFF",
-              minute: 0,
-              half: 1,
-              teamId: null,
-              playerId: null,
-              secondaryPlayerId: null,
-            });
-          }),
-        }),
-
-      pauseClock: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            if (!m.clockRunning || !m.clockStartedAt) return m;
-            const elapsedMin = Math.floor((Date.now() - m.clockStartedAt) / 60000);
-            return {
-              ...m,
-              clockRunning: false,
-              clockBaseMinute: m.clockBaseMinute + elapsedMin,
-              clockStartedAt: null,
-            };
-          }),
-        }),
-
-      resumeClock: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => ({
-            ...m,
+            status: "LIVE",
+            currentHalf: 1,
+            currentMinute: 0,
             clockRunning: true,
             clockStartedAt: Date.now(),
-          })),
-        }),
+            clockBaseMinute: 0,
+          };
+          const { match: next, event } = pushEvent(started, {
+            type: "KICK_OFF",
+            minute: 0,
+            half: 1,
+            teamId: null,
+            playerId: null,
+            secondaryPlayerId: null,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      goToHalfTime: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            const paused: Match = {
-              ...m,
-              currentHalf: "HT",
-              clockRunning: false,
-              clockStartedAt: null,
-              clockBaseMinute: m.halfLengthMinutes,
-            };
-            return pushEvent(paused, {
-              type: "HALF_TIME",
-              minute: m.halfLengthMinutes,
-              half: 1,
-              teamId: null,
-              playerId: null,
-              secondaryPlayerId: null,
-            });
-          }),
-        }),
-
-      startSecondHalf: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => ({
+      pauseClock: (matchId) => {
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          if (!m.clockRunning || !m.clockStartedAt) return m;
+          const elapsedMin = Math.floor((Date.now() - m.clockStartedAt) / 60000);
+          return {
             ...m,
-            currentHalf: 2,
-            clockRunning: true,
-            clockStartedAt: Date.now(),
+            clockRunning: false,
+            clockBaseMinute: m.clockBaseMinute + elapsedMin,
+            clockStartedAt: null,
+          };
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+      },
+
+      resumeClock: (matchId) => {
+        const matches = applyToMatch(get().matches, matchId, (m) => ({
+          ...m,
+          clockRunning: true,
+          clockStartedAt: Date.now(),
+        }));
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+      },
+
+      goToHalfTime: (matchId) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const paused: Match = {
+            ...m,
+            currentHalf: "HT",
+            clockRunning: false,
+            clockStartedAt: null,
             clockBaseMinute: m.halfLengthMinutes,
-          })),
-        }),
+          };
+          const { match: next, event } = pushEvent(paused, {
+            type: "HALF_TIME",
+            minute: m.halfLengthMinutes,
+            half: 1,
+            teamId: null,
+            playerId: null,
+            secondaryPlayerId: null,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      endMatch: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            const finished: Match = {
-              ...m,
-              status: "COMPLETED",
-              currentHalf: "FT",
-              currentMinute: m.durationMinutes,
-              clockRunning: false,
-              clockStartedAt: null,
-              clockBaseMinute: m.durationMinutes,
-            };
-            return pushEvent(finished, {
-              type: "FULL_TIME",
-              minute: m.durationMinutes,
-              half: 2,
-              teamId: null,
-              playerId: null,
-              secondaryPlayerId: null,
-            });
-          }),
-        }),
+      startSecondHalf: (matchId) => {
+        const matches = applyToMatch(get().matches, matchId, (m) => ({
+          ...m,
+          currentHalf: 2,
+          clockRunning: true,
+          clockStartedAt: Date.now(),
+          clockBaseMinute: m.halfLengthMinutes,
+        }));
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+      },
 
-      addGoalEvent: (matchId, input) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) =>
-            pushEvent(m, {
-              type: "GOAL",
-              minute: input.minute,
-              half: m.currentHalf === 2 ? 2 : 1,
-              teamId: input.teamId,
-              playerId: input.scorerId,
-              secondaryPlayerId: input.assistId,
-            })
-          ),
-        }),
+      endMatch: (matchId) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const finished: Match = {
+            ...m,
+            status: "COMPLETED",
+            currentHalf: "FT",
+            currentMinute: m.durationMinutes,
+            clockRunning: false,
+            clockStartedAt: null,
+            clockBaseMinute: m.durationMinutes,
+          };
+          const { match: next, event } = pushEvent(finished, {
+            type: "FULL_TIME",
+            minute: m.durationMinutes,
+            half: 2,
+            teamId: null,
+            playerId: null,
+            secondaryPlayerId: null,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      addCardEvent: (matchId, input) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) =>
-            pushEvent(m, {
-              type: input.cardType,
-              minute: input.minute,
-              half: m.currentHalf === 2 ? 2 : 1,
-              teamId: input.teamId,
-              playerId: input.playerId,
-              secondaryPlayerId: null,
-            })
-          ),
-        }),
+      addGoalEvent: (matchId, input) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const { match: next, event } = pushEvent(m, {
+            type: "GOAL",
+            minute: input.minute,
+            half: m.currentHalf === 2 ? 2 : 1,
+            teamId: input.teamId,
+            playerId: input.scorerId,
+            secondaryPlayerId: input.assistId,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      addSubstitutionEvent: (matchId, input) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) =>
-            pushEvent(m, {
-              type: "SUBSTITUTION",
-              minute: input.minute,
-              half: m.currentHalf === 2 ? 2 : 1,
-              teamId: input.teamId,
-              playerId: input.offId,
-              secondaryPlayerId: input.onId,
-            })
-          ),
-        }),
+      addCardEvent: (matchId, input) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const { match: next, event } = pushEvent(m, {
+            type: input.cardType,
+            minute: input.minute,
+            half: m.currentHalf === 2 ? 2 : 1,
+            teamId: input.teamId,
+            playerId: input.playerId,
+            secondaryPlayerId: null,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      addOwnGoalEvent: (matchId, input) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) =>
-            pushEvent(m, {
-              type: "OWN_GOAL",
-              minute: input.minute,
-              half: m.currentHalf === 2 ? 2 : 1,
-              teamId: input.teamId,
-              playerId: input.playerId,
-              secondaryPlayerId: null,
-            })
-          ),
-        }),
+      addSubstitutionEvent: (matchId, input) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const { match: next, event } = pushEvent(m, {
+            type: "SUBSTITUTION",
+            minute: input.minute,
+            half: m.currentHalf === 2 ? 2 : 1,
+            teamId: input.teamId,
+            playerId: input.offId,
+            secondaryPlayerId: input.onId,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      undoLastEvent: (matchId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            const idx = [...m.events]
-              .reverse()
-              .findIndex((e) => UNDOABLE_TYPES.includes(e.type));
-            if (idx === -1) return m;
-            const realIdx = m.events.length - 1 - idx;
-            const events = m.events.filter((_, i) => i !== realIdx);
-            const next = { ...m, events };
-            next.score = recalcScore(next);
-            return next;
-          }),
-        }),
+      addOwnGoalEvent: (matchId, input) => {
+        let createdEvent: MatchEvent | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const { match: next, event } = pushEvent(m, {
+            type: "OWN_GOAL",
+            minute: input.minute,
+            half: m.currentHalf === 2 ? 2 : 1,
+            teamId: input.teamId,
+            playerId: input.playerId,
+            secondaryPlayerId: null,
+          });
+          createdEvent = event;
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (updated) syncMatch(updated);
+        if (createdEvent) syncEvent(createdEvent);
+      },
 
-      deleteEvent: (matchId, eventId) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            const next = { ...m, events: m.events.filter((e) => e.id !== eventId) };
-            next.score = recalcScore(next);
-            return next;
-          }),
-        }),
+      undoLastEvent: (matchId) => {
+        let removedEventId: string | null = null;
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const idx = [...m.events].reverse().findIndex((e) => UNDOABLE_TYPES.includes(e.type));
+          if (idx === -1) return m;
+          const realIdx = m.events.length - 1 - idx;
+          removedEventId = m.events[realIdx].id;
+          const events = m.events.filter((_, i) => i !== realIdx);
+          const next = { ...m, events };
+          next.score = recalcScore(next);
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (removedEventId && isSupabaseConfigured()) {
+          remote.deleteMatchEvent(removedEventId).catch((err) => console.error("Zyra: failed to sync undo", err));
+          if (updated) syncMatch(updated);
+        }
+      },
 
-      updateEvent: (matchId, eventId, changes) =>
-        set({
-          matches: updateMatch(get().matches, matchId, (m) => {
-            const events = m.events.map((e) => (e.id === eventId ? { ...e, ...changes } : e));
-            const next = { ...m, events };
-            next.score = recalcScore(next);
-            return next;
-          }),
-        }),
+      deleteEvent: (matchId, eventId) => {
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const next = { ...m, events: m.events.filter((e) => e.id !== eventId) };
+          next.score = recalcScore(next);
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (isSupabaseConfigured()) {
+          remote.deleteMatchEvent(eventId).catch((err) => console.error("Zyra: failed to sync delete", err));
+          if (updated) syncMatch(updated);
+        }
+      },
+
+      updateEvent: (matchId, eventId, changes) => {
+        const matches = applyToMatch(get().matches, matchId, (m) => {
+          const events = m.events.map((e) => (e.id === eventId ? { ...e, ...changes } : e));
+          const next = { ...m, events };
+          next.score = recalcScore(next);
+          return next;
+        });
+        set({ matches });
+        const updated = matches.find((m) => m.id === matchId);
+        if (isSupabaseConfigured()) {
+          remote.updateMatchEvent(eventId, changes).catch((err) => console.error("Zyra: failed to sync edit", err));
+          if (updated) syncMatch(updated);
+        }
+      },
 
       resetDemoData: () =>
         set({
