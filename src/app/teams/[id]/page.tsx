@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/stat";
 import { PlayerAvatar } from "@/components/ui/avatar";
@@ -10,16 +12,36 @@ import { MatchCard } from "@/components/match-card";
 import { useTeam, useTeamMatches, useTeamPlayers } from "@/lib/hooks";
 import { computePlayerCareerStats, computeTeamStats } from "@/lib/stats";
 import { POSITION_LABELS, type Position } from "@/lib/types";
+import { useZyraStore } from "@/lib/store";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { useAuthUser } from "@/lib/supabase/auth";
 
 const POSITION_ORDER: Position[] = ["GK", "DF", "MF", "FW"];
 
 export default function TeamDetailPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const team = useTeam(params.id);
   const players = useTeamPlayers(params.id);
   const matches = useTeamMatches(params.id);
+  const deleteTeam = useZyraStore((s) => s.deleteTeam);
+  const deletePlayer = useZyraStore((s) => s.deletePlayer);
+  const user = useAuthUser();
+  const canEdit = !isSupabaseConfigured() || !!user;
 
   if (!team) {
     return <div className="mx-auto max-w-3xl px-4 pt-10 text-center text-sm text-ink-500">Team not found.</div>;
+  }
+
+  function handleDeleteTeam() {
+    if (!team) return;
+    if (!window.confirm(`Delete ${team.name} and all its players? This can't be undone.`)) return;
+    deleteTeam(team.id);
+    router.push("/teams");
+  }
+
+  function handleDeletePlayer(playerId: string, playerName: string) {
+    if (!window.confirm(`Remove ${playerName} from the squad?`)) return;
+    deletePlayer(playerId);
   }
 
   const stats = computeTeamStats(matches, team.id);
@@ -33,7 +55,19 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-6 md:px-8 md:pt-10">
-      <PageHeader title={team.name} backHref="/teams" />
+      <PageHeader
+        title={team.name}
+        backHref="/teams"
+        action={
+          canEdit && (
+            <Link href={`/teams/${team.id}/players/new`}>
+              <Button size="sm">
+                <Plus size={15} /> Player
+              </Button>
+            </Link>
+          )
+        }
+      />
 
       <Card className="mb-6 overflow-hidden">
         <div
@@ -101,24 +135,35 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
                   {group.map((p) => {
                     const career = computePlayerCareerStats(matches, p.id);
                     return (
-                      <Link
+                      <div
                         key={p.id}
-                        href={`/players/${p.id}`}
                         className="flex items-center gap-3 rounded-xl border border-ink-700/40 bg-ink-850 px-3 py-2.5 transition-colors hover:border-ink-600"
                       >
-                        <span className="w-5 text-center font-display text-xs font-bold text-ink-500">
-                          {p.shirtNumber}
-                        </span>
-                        <PlayerAvatar name={p.name} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-ink-50">{p.name}</p>
-                          <p className="text-[11px] text-ink-500">
-                            {career.appearances} apps
-                            {career.goals > 0 && ` · ${career.goals}G`}
-                            {career.assists > 0 && ` · ${career.assists}A`}
-                          </p>
-                        </div>
-                      </Link>
+                        <Link href={`/players/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                          <span className="w-5 text-center font-display text-xs font-bold text-ink-500">
+                            {p.shirtNumber}
+                          </span>
+                          <PlayerAvatar name={p.name} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-ink-50">{p.name}</p>
+                            <p className="text-[11px] text-ink-500">
+                              {career.appearances} apps
+                              {career.goals > 0 && ` · ${career.goals}G`}
+                              {career.assists > 0 && ` · ${career.assists}A`}
+                            </p>
+                          </div>
+                        </Link>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePlayer(p.id, p.name)}
+                            aria-label={`Remove ${p.name}`}
+                            className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-500 hover:bg-cardred/10 hover:text-cardred"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -138,6 +183,14 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
               <MatchCard key={m.id} match={m} />
             ))}
           </div>
+        </div>
+      )}
+
+      {canEdit && (
+        <div className="mb-10">
+          <Button variant="danger" size="sm" onClick={handleDeleteTeam}>
+            <Trash2 size={15} /> Delete Team
+          </Button>
         </div>
       )}
     </div>

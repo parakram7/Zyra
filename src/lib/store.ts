@@ -93,6 +93,30 @@ export interface OwnGoalInput {
   minute: number;
 }
 
+export interface NewTeamInput {
+  name: string;
+  shortName: string;
+  crestColorFrom: string;
+  crestColorTo: string;
+  foundedYear: number;
+  homeGround: string;
+  city: string;
+  category: string;
+  competitionId: string | null;
+}
+
+export interface NewPlayerInput {
+  teamId: string;
+  name: string;
+  shortName?: string;
+  shirtNumber: number;
+  position: Player["position"];
+  preferredFoot: Player["preferredFoot"];
+  dateOfBirth: string;
+  category: string;
+  nationality: string;
+}
+
 interface ZyraState {
   teams: Team[];
   players: Player[];
@@ -119,6 +143,11 @@ interface ZyraState {
   undoLastEvent: (matchId: string) => void;
   deleteEvent: (matchId: string, eventId: string) => void;
   updateEvent: (matchId: string, eventId: string, changes: Partial<MatchEvent>) => void;
+
+  addTeam: (input: NewTeamInput) => string;
+  deleteTeam: (teamId: string) => void;
+  addPlayer: (input: NewPlayerInput) => string;
+  deletePlayer: (playerId: string) => void;
 
   resetDemoData: () => void;
 }
@@ -527,6 +556,83 @@ export const useZyraStore = create<ZyraState>()(
         if (isSupabaseConfigured()) {
           remote.updateMatchEvent(eventId, changes).catch((err) => console.error("Zyra: failed to sync edit", err));
           if (updated) syncMatch(updated);
+        }
+      },
+
+      addTeam: (input) => {
+        const newId = id("team");
+        const team: Team = {
+          id: newId,
+          name: input.name,
+          shortName: input.shortName,
+          crestColorFrom: input.crestColorFrom,
+          crestColorTo: input.crestColorTo,
+          foundedYear: input.foundedYear,
+          homeGround: input.homeGround,
+          city: input.city,
+          category: input.category,
+        };
+        set({
+          teams: [...get().teams, team],
+          competitions: input.competitionId
+            ? get().competitions.map((c) =>
+                c.id === input.competitionId && !c.teamIds.includes(newId)
+                  ? { ...c, teamIds: [...c.teamIds, newId] }
+                  : c
+              )
+            : get().competitions,
+        });
+        if (isSupabaseConfigured()) {
+          remote.insertTeam(team).catch((err) => console.error("Zyra: failed to sync new team", err));
+          if (input.competitionId) {
+            remote
+              .addTeamToCompetition(input.competitionId, newId)
+              .catch((err) => console.error("Zyra: failed to sync team into competition", err));
+          }
+        }
+        return newId;
+      },
+
+      deleteTeam: (teamId) => {
+        set({
+          teams: get().teams.filter((t) => t.id !== teamId),
+          players: get().players.filter((p) => p.teamId !== teamId),
+          matches: get().matches.filter((m) => m.homeTeamId !== teamId && m.awayTeamId !== teamId),
+          competitions: get().competitions.map((c) => ({
+            ...c,
+            teamIds: c.teamIds.filter((id_) => id_ !== teamId),
+          })),
+        });
+        if (isSupabaseConfigured()) {
+          remote.deleteTeam(teamId).catch((err) => console.error("Zyra: failed to sync team delete", err));
+        }
+      },
+
+      addPlayer: (input) => {
+        const newId = id("player");
+        const player: Player = {
+          id: newId,
+          teamId: input.teamId,
+          name: input.name,
+          shortName: input.shortName,
+          shirtNumber: input.shirtNumber,
+          position: input.position,
+          preferredFoot: input.preferredFoot,
+          dateOfBirth: input.dateOfBirth,
+          category: input.category,
+          nationality: input.nationality,
+        };
+        set({ players: [...get().players, player] });
+        if (isSupabaseConfigured()) {
+          remote.insertPlayer(player).catch((err) => console.error("Zyra: failed to sync new player", err));
+        }
+        return newId;
+      },
+
+      deletePlayer: (playerId) => {
+        set({ players: get().players.filter((p) => p.id !== playerId) });
+        if (isSupabaseConfigured()) {
+          remote.deletePlayer(playerId).catch((err) => console.error("Zyra: failed to sync player delete", err));
         }
       },
 

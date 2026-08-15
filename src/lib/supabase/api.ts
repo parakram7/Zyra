@@ -139,3 +139,31 @@ export async function deleteMatchEvent(eventId: string) {
   const { error } = await getSupabase().from("match_events").delete().eq("id", eventId);
   if (error) throw error;
 }
+
+export async function addTeamToCompetition(competitionId: string, teamId: string) {
+  const { error } = await getSupabase()
+    .from("competition_teams")
+    .insert({ competition_id: competitionId, team_id: teamId });
+  if (error) throw error;
+}
+
+export async function deleteTeam(teamId: string) {
+  const sb = getSupabase();
+  // Matches reference teams without an ON DELETE CASCADE (a match needs
+  // both teams to make sense), so clear out any matches involving this
+  // team first — their events cascade automatically. Players and
+  // competition links do cascade from the team delete itself.
+  const { error: matchesError } = await sb
+    .from("matches")
+    .delete()
+    .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`);
+  if (matchesError) throw matchesError;
+
+  const { error } = await sb.from("teams").delete().eq("id", teamId);
+  if (error) throw error;
+}
+
+export async function deletePlayer(playerId: string) {
+  const { error } = await getSupabase().from("players").delete().eq("id", playerId);
+  if (error) throw error;
+}

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { TeamCrest } from "@/components/ui/avatar";
 import { useMatches, useTeams } from "@/lib/hooks";
 import { computeTeamStats } from "@/lib/stats";
@@ -13,7 +14,17 @@ export default function TeamsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-6 md:px-8 md:pt-10">
-      <PageHeader title="Teams" subtitle="Squads across the Metro Youth League" />
+      <PageHeader
+        title="Teams"
+        subtitle="Squads across the Metro Youth League"
+        action={
+          <Link href="/teams/new">
+            <Button size="sm">
+              <Plus size={15} /> New
+            </Button>
+          </Link>
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {teams.map((team) => {

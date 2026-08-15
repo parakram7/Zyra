@@ -68,6 +68,8 @@ automatically.
 
 - Every signed-in account can edit every team/match — there's no
   "this coach can only score their own match" restriction yet.
-- New teams/players for the real tournament are added the same way the
-  sample data was: SQL, or ask for a simple add-team/add-player screen to
-  be built.
+- New teams/players for the real tournament can now be added straight from
+  the app: "Teams" tab → "New" to add a team, then "Player" on a team's page
+  to add someone to its squad. Sign in first — these are coach-only actions.
+  Delete Team / the trash icon next to a player removes demo data the same
+  way.
