@@ -73,3 +73,11 @@ automatically.
   to add someone to its squad. Sign in first — these are coach-only actions.
   Delete Team / the trash icon next to a player removes demo data the same
   way.
+- Competitions can also be created in-app: "Competitions" tab → "New".
+  Choose "League" for a single table, or "Groups + Knockout" for a
+  UCL-style tournament — pick the number of groups and teams per group,
+  assign teams to each (existing or brand new), then set the knockout draw
+  (e.g. Group A's 1st vs Group B's 2nd) with editable dropdowns. This adds
+  two columns (`groups`, `knockout_pairs`) to the `competitions` table —
+  re-run the latest `supabase/schema.sql` in the Supabase SQL editor once
+  to pick them up (it's safe to re-run; every statement is guarded).

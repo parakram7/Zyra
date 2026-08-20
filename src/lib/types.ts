@@ -43,14 +43,31 @@ export interface Team {
   category: string; // e.g. "U16 Boys", "Senior Men"
 }
 
-export type CompetitionFormat = "league" | "cup";
+export type CompetitionFormat = "league" | "cup" | "groups";
+
+export interface CompetitionGroup {
+  label: string; // "A", "B", "C", ...
+  teamIds: string[]; // order = seed within the group (1st, 2nd, ...)
+}
+
+export interface KnockoutSlot {
+  group: string; // group label
+  rank: number; // 1-based position within that group
+}
+
+export interface KnockoutPair {
+  home: KnockoutSlot;
+  away: KnockoutSlot;
+}
 
 export interface Competition {
   id: string;
   name: string;
   season: string;
   format: CompetitionFormat;
-  teamIds: string[];
+  teamIds: string[]; // for "league": every team in the competition. for "groups": union of every group's teams.
+  groups?: CompetitionGroup[]; // only set when format is "groups"
+  knockoutPairs?: KnockoutPair[]; // only set when format is "groups" — the first knockout round's draw
 }
 
 export type MatchStatus = "SCHEDULED" | "LIVE" | "COMPLETED";

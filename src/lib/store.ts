@@ -23,6 +23,9 @@ import {
 } from "./seed-data";
 import type {
   Competition,
+  CompetitionFormat,
+  CompetitionGroup,
+  KnockoutPair,
   Match,
   MatchEvent,
   MatchEventType,
@@ -105,6 +108,15 @@ export interface NewTeamInput {
   competitionId: string | null;
 }
 
+export interface NewCompetitionInput {
+  name: string;
+  season: string;
+  format: CompetitionFormat;
+  teamIds: string[];
+  groups?: CompetitionGroup[];
+  knockoutPairs?: KnockoutPair[];
+}
+
 export interface NewPlayerInput {
   teamId: string;
   name: string;
@@ -148,6 +160,7 @@ interface ZyraState {
   deleteTeam: (teamId: string) => void;
   addPlayer: (input: NewPlayerInput) => string;
   deletePlayer: (playerId: string) => void;
+  addCompetition: (input: NewCompetitionInput) => string;
 
   resetDemoData: () => void;
 }
@@ -634,6 +647,26 @@ export const useZyraStore = create<ZyraState>()(
         if (isSupabaseConfigured()) {
           remote.deletePlayer(playerId).catch((err) => console.error("Zyra: failed to sync player delete", err));
         }
+      },
+
+      addCompetition: (input) => {
+        const newId = id("competition");
+        const competition: Competition = {
+          id: newId,
+          name: input.name,
+          season: input.season,
+          format: input.format,
+          teamIds: input.teamIds,
+          groups: input.groups,
+          knockoutPairs: input.knockoutPairs,
+        };
+        set({ competitions: [...get().competitions, competition] });
+        if (isSupabaseConfigured()) {
+          remote
+            .insertCompetition(competition)
+            .catch((err) => console.error("Zyra: failed to sync new competition", err));
+        }
+        return newId;
       },
 
       resetDemoData: () =>

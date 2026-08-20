@@ -82,6 +82,8 @@ export function competitionFromRow(row: any, teamIds: string[]): Competition {
     season: row.season,
     format: row.format,
     teamIds,
+    groups: row.groups ?? undefined,
+    knockoutPairs: row.knockout_pairs ?? undefined,
   };
 }
 

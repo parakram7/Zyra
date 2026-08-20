@@ -78,6 +78,8 @@ export async function insertCompetition(competition: Competition) {
     name: competition.name,
     season: competition.season,
     format: competition.format,
+    groups: competition.groups ?? null,
+    knockout_pairs: competition.knockoutPairs ?? null,
   });
   if (error) throw error;
   if (competition.teamIds.length > 0) {

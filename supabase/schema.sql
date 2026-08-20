@@ -47,9 +47,18 @@ create table if not exists competitions (
   id text primary key,
   name text not null,
   season text not null,
-  format text not null default 'league' check (format in ('league', 'cup')),
+  format text not null default 'league' check (format in ('league', 'cup', 'groups')),
+  groups jsonb, -- [{ label: "A", teamIds: [...] }, ...] — only set when format = 'groups'
+  knockout_pairs jsonb, -- [{ home: { group, rank }, away: { group, rank } }, ...] — first knockout round draw
   created_at timestamptz not null default now()
 );
+
+-- Re-running this file against a database created before the "groups" format
+-- existed: widen the format check and add the two new columns.
+alter table competitions add column if not exists groups jsonb;
+alter table competitions add column if not exists knockout_pairs jsonb;
+alter table competitions drop constraint if exists competitions_format_check;
+alter table competitions add constraint competitions_format_check check (format in ('league', 'cup', 'groups'));
 
 create table if not exists competition_teams (
   competition_id text not null references competitions(id) on delete cascade,

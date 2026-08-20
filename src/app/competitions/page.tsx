@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { Plus, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { useCompetitions, useTeams } from "@/lib/hooks";
 
 export default function CompetitionsPage() {
@@ -11,7 +12,17 @@ export default function CompetitionsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-6 md:px-8 md:pt-10">
-      <PageHeader title="Competitions" subtitle="Leagues and tournaments" />
+      <PageHeader
+        title="Competitions"
+        subtitle="Leagues and tournaments"
+        action={
+          <Link href="/competitions/new">
+            <Button size="sm">
+              <Plus size={15} /> New
+            </Button>
+          </Link>
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {competitions.map((comp) => (
@@ -26,7 +37,7 @@ export default function CompetitionsPage() {
             <div className="min-w-0">
               <p className="truncate font-display text-base font-semibold text-ink-50">{comp.name}</p>
               <p className="text-xs text-ink-400">
-                {comp.season} · {comp.teamIds.length} teams
+                {comp.season} · {comp.format === "groups" ? "Groups + Knockout" : "League"} · {comp.teamIds.length} teams
               </p>
               <p className="mt-1 truncate text-xs text-ink-500">
                 {comp.teamIds
