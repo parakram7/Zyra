@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/field";
 import { AuthGate } from "@/components/auth-gate";
-import { useCompetitions, useTeams } from "@/lib/hooks";
+import { useMyCompetitions, useMyTeams } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
-import { DEMO_TEAM_ID } from "@/lib/seed-data";
 
 const DURATIONS = [
   { value: 40, label: "20 min halves (U10)" },
@@ -40,16 +39,14 @@ export default function NewMatchPage() {
 
 function NewMatchPageInner() {
   const router = useRouter();
-  const teams = useTeams();
-  const competitions = useCompetitions();
+  const teams = useMyTeams();
+  const competitions = useMyCompetitions();
   const createMatch = useZyraStore((s) => s.createMatch);
 
-  const [homeTeamId, setHomeTeamId] = useState(DEMO_TEAM_ID);
-  const [awayTeamId, setAwayTeamId] = useState(
-    teams.find((t) => t.id !== DEMO_TEAM_ID)?.id ?? ""
-  );
+  const [homeTeamId, setHomeTeamId] = useState(teams[0]?.id ?? "");
+  const [awayTeamId, setAwayTeamId] = useState(teams[1]?.id ?? "");
   const [date, setDate] = useState(defaultDateTime());
-  const [venue, setVenue] = useState(teams.find((t) => t.id === DEMO_TEAM_ID)?.homeGround ?? "");
+  const [venue, setVenue] = useState(teams[0]?.homeGround ?? "");
   const [duration, setDuration] = useState(70);
   const [competitionId, setCompetitionId] = useState<string>(competitions[0]?.id ?? "");
 

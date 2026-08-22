@@ -2,11 +2,22 @@ import type {
   Competition,
   Match,
   MatchEvent,
+  Organization,
   Player,
   Position,
   Team,
   TeamLineup,
 } from "./types";
+
+// ---------------------------------------------------------------------------
+// Organization (single school, for local demo mode)
+// ---------------------------------------------------------------------------
+
+export const DEMO_ORG_ID = "org-demo";
+
+export const organizations: Organization[] = [
+  { id: DEMO_ORG_ID, name: "Riverside School District", city: "Pune" },
+];
 
 // ---------------------------------------------------------------------------
 // Teams
@@ -20,6 +31,7 @@ export const TEAM_NORTHGATE = "team-northgate";
 export const teams: Team[] = [
   {
     id: TEAM_RIVERSIDE,
+    orgId: DEMO_ORG_ID,
     name: "Riverside Academy",
     shortName: "RIV",
     crestColorFrom: "#34d399",
@@ -31,6 +43,7 @@ export const teams: Team[] = [
   },
   {
     id: TEAM_LAKESIDE,
+    orgId: DEMO_ORG_ID,
     name: "Lakeside United",
     shortName: "LAK",
     crestColorFrom: "#60a5fa",
@@ -42,6 +55,7 @@ export const teams: Team[] = [
   },
   {
     id: TEAM_EASTWOOD,
+    orgId: DEMO_ORG_ID,
     name: "Eastwood Rangers",
     shortName: "EWR",
     crestColorFrom: "#fb923c",
@@ -53,6 +67,7 @@ export const teams: Team[] = [
   },
   {
     id: TEAM_NORTHGATE,
+    orgId: DEMO_ORG_ID,
     name: "Northgate Warriors",
     shortName: "NGW",
     crestColorFrom: "#a78bfa",
@@ -439,6 +454,7 @@ export const COMPETITION_ID = "comp-metro-youth-league";
 export const competitions: Competition[] = [
   {
     id: COMPETITION_ID,
+    orgId: DEMO_ORG_ID,
     name: "Metro Youth League",
     season: "2025/26",
     format: "league",
@@ -838,6 +854,7 @@ function sumScore(events: MatchEvent[], teamId: string, otherTeamId: string) {
 export const matches: Match[] = [
   {
     id: M1,
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_RIVERSIDE,
     awayTeamId: TEAM_LAKESIDE,
@@ -861,6 +878,7 @@ export const matches: Match[] = [
   },
   {
     id: M2,
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_EASTWOOD,
     awayTeamId: TEAM_RIVERSIDE,
@@ -884,6 +902,7 @@ export const matches: Match[] = [
   },
   {
     id: M3,
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_NORTHGATE,
     awayTeamId: TEAM_LAKESIDE,
@@ -907,6 +926,7 @@ export const matches: Match[] = [
   },
   {
     id: M4,
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_RIVERSIDE,
     awayTeamId: TEAM_NORTHGATE,
@@ -930,6 +950,7 @@ export const matches: Match[] = [
   },
   {
     id: M5,
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_RIVERSIDE,
     awayTeamId: TEAM_EASTWOOD,
@@ -954,6 +975,7 @@ export const matches: Match[] = [
   // Upcoming fixtures
   {
     id: "match-lak-riv-upcoming",
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_LAKESIDE,
     awayTeamId: TEAM_RIVERSIDE,
@@ -974,6 +996,7 @@ export const matches: Match[] = [
   },
   {
     id: "match-riv-ngw-upcoming",
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_RIVERSIDE,
     awayTeamId: TEAM_NORTHGATE,
@@ -994,6 +1017,7 @@ export const matches: Match[] = [
   },
   {
     id: "match-ewr-ngw-upcoming",
+    orgId: DEMO_ORG_ID,
     competitionId: COMPETITION_ID,
     homeTeamId: TEAM_EASTWOOD,
     awayTeamId: TEAM_NORTHGATE,

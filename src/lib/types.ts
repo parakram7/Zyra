@@ -5,6 +5,13 @@
 // so the persistence layer can be swapped for Supabase later without
 // touching UI or stats code.
 
+export interface Organization {
+  id: string;
+  name: string; // school / club name
+  city: string;
+  logoUrl?: string | null;
+}
+
 export type Position = "GK" | "DF" | "MF" | "FW";
 
 export const POSITION_LABELS: Record<Position, string> = {
@@ -33,6 +40,7 @@ export interface Player {
 
 export interface Team {
   id: string;
+  orgId: string; // the school/club that owns this team
   name: string;
   shortName: string;
   crestColorFrom: string; // tailwind-esque hex for crest gradient
@@ -62,6 +70,7 @@ export interface KnockoutPair {
 
 export interface Competition {
   id: string;
+  orgId: string; // the school/club running this competition
   name: string;
   season: string;
   format: CompetitionFormat;
@@ -116,6 +125,7 @@ export interface MatchScore {
 
 export interface Match {
   id: string;
+  orgId: string; // the school/club that scheduled this match
   competitionId: string | null;
   homeTeamId: string;
   awayTeamId: string;

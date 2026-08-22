@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Plus, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { useCompetitions, useTeams } from "@/lib/hooks";
+import { useMyCompetitions, useTeams } from "@/lib/hooks";
 
 export default function CompetitionsPage() {
-  const competitions = useCompetitions();
+  const competitions = useMyCompetitions();
   const teams = useTeams();
 
   return (
@@ -23,6 +23,14 @@ export default function CompetitionsPage() {
           </Link>
         }
       />
+
+      <Link
+        href="/discover"
+        className="mb-5 flex items-center justify-between rounded-2xl border border-ink-700/40 bg-ink-850 px-4 py-3.5 text-sm transition-colors hover:border-ink-500/60"
+      >
+        <span className="font-medium text-ink-100">Discover tournaments from other schools</span>
+        <span className="text-brand-400">Browse →</span>
+      </Link>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {competitions.map((comp) => (

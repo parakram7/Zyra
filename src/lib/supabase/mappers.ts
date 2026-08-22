@@ -8,14 +8,34 @@ import type {
   Match,
   MatchEvent,
   MatchHalf,
+  Organization,
   Player,
   Team,
   TeamLineup,
 } from "@/lib/types";
 
+export function organizationFromRow(row: any): Organization {
+  return {
+    id: row.id,
+    name: row.name,
+    city: row.city ?? "",
+    logoUrl: row.logo_url ?? undefined,
+  };
+}
+
+export function organizationToRow(org: Organization) {
+  return {
+    id: org.id,
+    name: org.name,
+    city: org.city,
+    logo_url: org.logoUrl ?? null,
+  };
+}
+
 export function teamFromRow(row: any): Team {
   return {
     id: row.id,
+    orgId: row.org_id,
     name: row.name,
     shortName: row.short_name,
     crestColorFrom: row.crest_color_from,
@@ -30,6 +50,7 @@ export function teamFromRow(row: any): Team {
 export function teamToRow(team: Team) {
   return {
     id: team.id,
+    org_id: team.orgId,
     name: team.name,
     short_name: team.shortName,
     crest_color_from: team.crestColorFrom,
@@ -78,6 +99,7 @@ export function playerToRow(player: Player) {
 export function competitionFromRow(row: any, teamIds: string[]): Competition {
   return {
     id: row.id,
+    orgId: row.org_id,
     name: row.name,
     season: row.season,
     format: row.format,
@@ -132,6 +154,7 @@ function halfToRow(value: MatchHalf | null): string | null {
 export function matchFromRow(row: any, events: MatchEvent[]): Match {
   return {
     id: row.id,
+    orgId: row.org_id,
     competitionId: row.competition_id,
     homeTeamId: row.home_team_id,
     awayTeamId: row.away_team_id,
@@ -155,6 +178,7 @@ export function matchFromRow(row: any, events: MatchEvent[]): Match {
 export function matchToRow(match: Match) {
   return {
     id: match.id,
+    org_id: match.orgId,
     competition_id: match.competitionId,
     home_team_id: match.homeTeamId,
     away_team_id: match.awayTeamId,

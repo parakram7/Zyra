@@ -16,10 +16,12 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import {
+  DEMO_ORG_ID,
   teams as seedTeams,
   players as seedPlayers,
   competitions as seedCompetitions,
   matches as seedMatches,
+  organizations as seedOrganizations,
 } from "./seed-data";
 import type {
   Competition,
@@ -29,6 +31,7 @@ import type {
   Match,
   MatchEvent,
   MatchEventType,
+  Organization,
   Player,
   Team,
   TeamLineup,
@@ -108,6 +111,11 @@ export interface NewTeamInput {
   competitionId: string | null;
 }
 
+export interface NewOrganizationInput {
+  name: string;
+  city: string;
+}
+
 export interface NewCompetitionInput {
   name: string;
   season: string;
@@ -130,14 +138,22 @@ export interface NewPlayerInput {
 }
 
 interface ZyraState {
+  organizations: Organization[];
+  currentOrgId: string | null;
+  followedTeamIds: string[];
   teams: Team[];
   players: Player[];
   competitions: Competition[];
   matches: Match[];
   hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
-  loadFromSupabase: () => Promise<void>;
+  loadFromSupabase: (userId: string | null) => Promise<void>;
+  resolveMyOrg: (userId: string | null) => Promise<void>;
   subscribeRealtime: () => () => void;
+
+  createOrganization: (input: NewOrganizationInput) => Promise<string>;
+  followTeam: (userId: string, teamId: string) => void;
+  unfollowTeam: (userId: string, teamId: string) => void;
 
   createMatch: (input: NewMatchInput) => string;
   setLineup: (matchId: string, side: "home" | "away", lineup: TeamLineup) => void;
@@ -205,6 +221,9 @@ const UNDOABLE_TYPES: MatchEventType[] = [
 export const useZyraStore = create<ZyraState>()(
   persist(
     (set, get) => ({
+      organizations: seedOrganizations,
+      currentOrgId: DEMO_ORG_ID,
+      followedTeamIds: [],
       teams: seedTeams,
       players: seedPlayers,
       competitions: seedCompetitions,
@@ -212,14 +231,29 @@ export const useZyraStore = create<ZyraState>()(
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
 
-      loadFromSupabase: async () => {
-        const data = await fetchAllData();
+      loadFromSupabase: async (userId) => {
+        const data = await fetchAllData(userId);
         set({
+          organizations: data.organizations,
           teams: data.teams,
           players: data.players,
           competitions: data.competitions,
           matches: data.matches,
+          followedTeamIds: data.followedTeamIds,
         });
+      },
+
+      resolveMyOrg: async (userId) => {
+        if (!isSupabaseConfigured()) {
+          set({ currentOrgId: DEMO_ORG_ID });
+          return;
+        }
+        if (!userId) {
+          set({ currentOrgId: null });
+          return;
+        }
+        const orgId = await remote.fetchMyOrgId(userId);
+        set({ currentOrgId: orgId });
       },
 
       subscribeRealtime: () => {
@@ -280,6 +314,7 @@ export const useZyraStore = create<ZyraState>()(
         const newId = id("match");
         const match: Match = {
           id: newId,
+          orgId: get().currentOrgId ?? DEMO_ORG_ID,
           competitionId: input.competitionId,
           homeTeamId: input.homeTeamId,
           awayTeamId: input.awayTeamId,
@@ -576,6 +611,7 @@ export const useZyraStore = create<ZyraState>()(
         const newId = id("team");
         const team: Team = {
           id: newId,
+          orgId: get().currentOrgId ?? DEMO_ORG_ID,
           name: input.name,
           shortName: input.shortName,
           crestColorFrom: input.crestColorFrom,
@@ -653,6 +689,7 @@ export const useZyraStore = create<ZyraState>()(
         const newId = id("competition");
         const competition: Competition = {
           id: newId,
+          orgId: get().currentOrgId ?? DEMO_ORG_ID,
           name: input.name,
           season: input.season,
           format: input.format,
@@ -669,8 +706,45 @@ export const useZyraStore = create<ZyraState>()(
         return newId;
       },
 
+      createOrganization: async (input) => {
+        const newId = id("org");
+        const org: Organization = { id: newId, name: input.name, city: input.city };
+
+        if (isSupabaseConfigured()) {
+          // Awaited (unlike other actions): the app can't safely treat the
+          // user as "in" this org until the org row and their founding
+          // membership both exist server-side — RLS depends on it.
+          await remote.insertOrganization(org);
+          const sb = getSupabase();
+          const { data } = await sb.auth.getUser();
+          const userId = data.user?.id;
+          if (userId) await remote.joinAsFoundingMember(newId, userId);
+        }
+
+        set({ organizations: [...get().organizations, org], currentOrgId: newId });
+        return newId;
+      },
+
+      followTeam: (userId, teamId) => {
+        if (get().followedTeamIds.includes(teamId)) return;
+        set({ followedTeamIds: [...get().followedTeamIds, teamId] });
+        if (isSupabaseConfigured()) {
+          remote.followTeam(userId, teamId).catch((err) => console.error("Zyra: failed to sync follow", err));
+        }
+      },
+
+      unfollowTeam: (userId, teamId) => {
+        set({ followedTeamIds: get().followedTeamIds.filter((id_) => id_ !== teamId) });
+        if (isSupabaseConfigured()) {
+          remote.unfollowTeam(userId, teamId).catch((err) => console.error("Zyra: failed to sync unfollow", err));
+        }
+      },
+
       resetDemoData: () =>
         set({
+          organizations: seedOrganizations,
+          currentOrgId: DEMO_ORG_ID,
+          followedTeamIds: [],
           teams: seedTeams,
           players: seedPlayers,
           competitions: seedCompetitions,
@@ -682,6 +756,9 @@ export const useZyraStore = create<ZyraState>()(
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       partialize: (state) => ({
+        organizations: state.organizations,
+        currentOrgId: state.currentOrgId,
+        followedTeamIds: state.followedTeamIds,
         teams: state.teams,
         players: state.players,
         competitions: state.competitions,

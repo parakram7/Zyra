@@ -5,36 +5,43 @@ import {
   matchEventToRow,
   matchFromRow,
   matchToRow,
+  organizationFromRow,
+  organizationToRow,
   playerFromRow,
   playerToRow,
   teamFromRow,
   teamToRow,
 } from "./mappers";
-import type { Competition, Match, MatchEvent, Player, Team, TeamLineup } from "@/lib/types";
+import type { Competition, Match, MatchEvent, Organization, Player, Team, TeamLineup } from "@/lib/types";
 
 export interface RemoteData {
+  organizations: Organization[];
   teams: Team[];
   players: Player[];
   competitions: Competition[];
   matches: Match[];
+  followedTeamIds: string[];
 }
 
-export async function fetchAllData(): Promise<RemoteData> {
+export async function fetchAllData(userId: string | null): Promise<RemoteData> {
   const sb = getSupabase();
-  const [teamsRes, playersRes, competitionsRes, competitionTeamsRes, matchesRes, eventsRes] =
+  const [orgsRes, teamsRes, playersRes, competitionsRes, competitionTeamsRes, matchesRes, eventsRes, followsRes] =
     await Promise.all([
+      sb.from("organizations").select("*"),
       sb.from("teams").select("*"),
       sb.from("players").select("*"),
       sb.from("competitions").select("*"),
       sb.from("competition_teams").select("*"),
       sb.from("matches").select("*"),
       sb.from("match_events").select("*"),
+      userId ? sb.from("team_follows").select("team_id").eq("user_id", userId) : Promise.resolve({ data: [], error: null }),
     ]);
 
-  for (const res of [teamsRes, playersRes, competitionsRes, competitionTeamsRes, matchesRes, eventsRes]) {
+  for (const res of [orgsRes, teamsRes, playersRes, competitionsRes, competitionTeamsRes, matchesRes, eventsRes, followsRes]) {
     if (res.error) throw res.error;
   }
 
+  const organizations = (orgsRes.data ?? []).map(organizationFromRow);
   const teams = (teamsRes.data ?? []).map(teamFromRow);
   const players = (playersRes.data ?? []).map(playerFromRow);
   const eventsByMatch = new Map<string, MatchEvent[]>();
@@ -58,7 +65,45 @@ export async function fetchAllData(): Promise<RemoteData> {
     competitionFromRow(row, teamIdsByCompetition.get(row.id) ?? [])
   );
 
-  return { teams, players, competitions, matches };
+  const followedTeamIds = ((followsRes.data ?? []) as { team_id: string }[]).map((r) => r.team_id);
+
+  return { organizations, teams, players, competitions, matches, followedTeamIds };
+}
+
+export async function fetchMyOrgId(userId: string): Promise<string | null> {
+  const { data, error } = await getSupabase()
+    .from("org_members")
+    .select("org_id")
+    .eq("user_id", userId)
+    .limit(1);
+  if (error) throw error;
+  return (data?.[0] as { org_id: string } | undefined)?.org_id ?? null;
+}
+
+export async function insertOrganization(org: Organization) {
+  const { error } = await getSupabase().from("organizations").insert(organizationToRow(org));
+  if (error) throw error;
+}
+
+export async function joinAsFoundingMember(orgId: string, userId: string) {
+  const { error } = await getSupabase()
+    .from("org_members")
+    .insert({ org_id: orgId, user_id: userId, role: "admin" });
+  if (error) throw error;
+}
+
+export async function followTeam(userId: string, teamId: string) {
+  const { error } = await getSupabase().from("team_follows").insert({ user_id: userId, team_id: teamId });
+  if (error) throw error;
+}
+
+export async function unfollowTeam(userId: string, teamId: string) {
+  const { error } = await getSupabase()
+    .from("team_follows")
+    .delete()
+    .eq("user_id", userId)
+    .eq("team_id", teamId);
+  if (error) throw error;
 }
 
 export async function insertTeam(team: Team) {
@@ -75,6 +120,7 @@ export async function insertCompetition(competition: Competition) {
   const sb = getSupabase();
   const { error } = await sb.from("competitions").insert({
     id: competition.id,
+    org_id: competition.orgId,
     name: competition.name,
     season: competition.season,
     format: competition.format,

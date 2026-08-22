@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/field";
 import { AuthGate } from "@/components/auth-gate";
-import { useCompetitions } from "@/lib/hooks";
+import { useMyCompetitions } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 
 const CREST_PRESETS = [
@@ -29,7 +29,7 @@ export default function NewTeamPage() {
 
 function NewTeamPageInner() {
   const router = useRouter();
-  const competitions = useCompetitions();
+  const competitions = useMyCompetitions();
   const addTeam = useZyraStore((s) => s.addTeam);
 
   const [name, setName] = useState("");

@@ -8,7 +8,7 @@ import { StatTile } from "@/components/ui/stat";
 import { TeamCrest, PlayerAvatar } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/match-card";
 import { FootballIcon } from "@/components/icons";
-import { useMatches, useTeam, useTeamPlayers, useTeams } from "@/lib/hooks";
+import { useMyMatches, useMyTeams, useTeam, useTeamPlayers } from "@/lib/hooks";
 import {
   computePlayerStatsForMatch,
   computeStandings,
@@ -16,21 +16,21 @@ import {
   computeTopAssists,
   computeTopScorers,
 } from "@/lib/stats";
-import { DEMO_TEAM_ID } from "@/lib/seed-data";
 import { formatMinute, getLiveMinute } from "@/lib/match-clock";
 import { formatMatchDateTime } from "@/lib/format";
 
 export default function HomePage() {
-  const matches = useMatches();
-  const teams = useTeams();
-  const team = useTeam(DEMO_TEAM_ID);
-  const teamPlayers = useTeamPlayers(DEMO_TEAM_ID);
+  const matches = useMyMatches();
+  const teams = useMyTeams();
+  const primaryTeamId = teams[0]?.id;
+  const team = useTeam(primaryTeamId);
+  const teamPlayers = useTeamPlayers(primaryTeamId);
 
   if (!team) return null;
 
   const liveMatch = matches.find((m) => m.status === "LIVE");
   const teamMatches = matches.filter(
-    (m) => m.homeTeamId === DEMO_TEAM_ID || m.awayTeamId === DEMO_TEAM_ID
+    (m) => m.homeTeamId === primaryTeamId || m.awayTeamId === primaryTeamId
   );
   const upcoming = teamMatches
     .filter((m) => m.status === "SCHEDULED")
@@ -41,7 +41,7 @@ export default function HomePage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const lastMatch = recentCompleted[0];
 
-  const teamStats = computeTeamStats(matches, DEMO_TEAM_ID);
+  const teamStats = computeTeamStats(matches, primaryTeamId);
   const topScorers = computeTopScorers(matches, teamPlayers, teams, 3);
   const topAssists = computeTopAssists(matches, teamPlayers, teams, 3);
   const standings = computeStandings(
@@ -49,7 +49,7 @@ export default function HomePage() {
     teams,
     teams.map((t) => t.id)
   );
-  const leaguePosition = standings.findIndex((r) => r.team.id === DEMO_TEAM_ID) + 1;
+  const leaguePosition = standings.findIndex((r) => r.team.id === primaryTeamId) + 1;
 
   const lastMatchPerformers = lastMatch
     ? teamPlayers

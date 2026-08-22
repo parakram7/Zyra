@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, MapPin, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, MapPin, Plus, Star, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/stat";
 import { PlayerAvatar } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/match-card";
-import { useTeam, useTeamMatches, useTeamPlayers } from "@/lib/hooks";
+import { useIsFollowingTeam, useTeam, useTeamMatches, useTeamPlayers } from "@/lib/hooks";
 import { computePlayerCareerStats, computeTeamStats } from "@/lib/stats";
 import { POSITION_LABELS, type Position } from "@/lib/types";
 import { useZyraStore } from "@/lib/store";
@@ -25,8 +25,18 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
   const matches = useTeamMatches(params.id);
   const deleteTeam = useZyraStore((s) => s.deleteTeam);
   const deletePlayer = useZyraStore((s) => s.deletePlayer);
+  const followTeam = useZyraStore((s) => s.followTeam);
+  const unfollowTeam = useZyraStore((s) => s.unfollowTeam);
+  const isFollowing = useIsFollowingTeam(params.id);
   const user = useAuthUser();
   const canEdit = !isSupabaseConfigured() || !!user;
+  const canFollow = isSupabaseConfigured() && !!user;
+
+  function handleToggleFollow() {
+    if (!user) return;
+    if (isFollowing) unfollowTeam(user.id, params.id);
+    else followTeam(user.id, params.id);
+  }
 
   if (!team) {
     return <div className="mx-auto max-w-3xl px-4 pt-10 text-center text-sm text-ink-500">Team not found.</div>;
@@ -82,12 +92,23 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
             >
               {team.shortName}
             </div>
-            <div className="pb-1">
+            <div className="flex-1 pb-1">
               <h2 className="font-display text-xl font-bold text-ink-50">{team.name}</h2>
               <p className="flex items-center gap-1 text-xs text-ink-400">
                 <MapPin size={11} /> {team.city} · {team.homeGround}
               </p>
             </div>
+            {canFollow && (
+              <Button
+                variant={isFollowing ? "secondary" : "outline"}
+                size="sm"
+                onClick={handleToggleFollow}
+                className="mb-1"
+              >
+                <Star size={14} className={isFollowing ? "fill-current" : undefined} />
+                {isFollowing ? "Following" : "Follow"}
+              </Button>
+            )}
           </div>
           <p className="mt-3 text-xs text-ink-500">{team.category} · Founded {team.foundedYear}</p>
         </CardBody>

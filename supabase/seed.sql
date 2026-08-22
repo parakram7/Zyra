@@ -3,6 +3,10 @@
 -- Paste into the Supabase SQL Editor AFTER schema.sql has been run.
 -- Safe to re-run: existing rows with the same id are left alone.
 
+insert into organizations (id, name, city) values
+  ('org-riverside-demo', 'Riverside School District', 'Pune')
+on conflict (id) do nothing;
+
 insert into teams (id, name, short_name, crest_color_from, crest_color_to, founded_year, home_ground, city, category) values
   ('team-riverside', 'Riverside Academy', 'RIV', '#34d399', '#047857', 2011, 'Riverside Turf Ground', 'Pune', 'U16 Boys'),
   ('team-lakeside', 'Lakeside United', 'LAK', '#60a5fa', '#1d4ed8', 2008, 'Lakeside Community Ground', 'Pune', 'U16 Boys'),
@@ -132,3 +136,12 @@ insert into match_events (id, match_id, type, minute, half, team_id, player_id, 
   ('evt-match-riv-ewr-live-32', 'match-riv-ewr-live', 'GOAL', 51, 2, 'team-riverside', 'p-vivaan-khanna', 'p-dhruv-saxena', null),
   ('evt-match-riv-ewr-live-33', 'match-riv-ewr-live', 'SUBSTITUTION', 55, 2, 'team-riverside', 'p-reyansh-joshi', 'p-shaurya-malhotra', null)
 on conflict (id) do nothing;
+
+-- Attach everything above to the demo organization (only touches rows that
+-- don't already belong to one, so this is safe to re-run).
+update teams set org_id = 'org-riverside-demo'
+  where org_id is null and id in ('team-riverside', 'team-lakeside', 'team-eastwood', 'team-northgate');
+update competitions set org_id = 'org-riverside-demo'
+  where org_id is null and id = 'comp-metro-youth-league';
+update matches set org_id = 'org-riverside-demo'
+  where org_id is null and competition_id = 'comp-metro-youth-league';

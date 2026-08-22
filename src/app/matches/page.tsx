@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { MatchCard } from "@/components/match-card";
 import { Button } from "@/components/ui/button";
-import { useMatches } from "@/lib/hooks";
+import { useMyMatches } from "@/lib/hooks";
 import type { MatchStatus } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -18,7 +18,7 @@ const TABS: { key: MatchStatus | "ALL"; label: string }[] = [
 ];
 
 export default function MatchesPage() {
-  const matches = useMatches();
+  const matches = useMyMatches();
   const [tab, setTab] = useState<MatchStatus | "ALL">("ALL");
 
   const filtered = matches

@@ -8,7 +8,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/field";
 import { TeamCrest } from "@/components/ui/avatar";
 import { AuthGate } from "@/components/auth-gate";
-import { useTeams } from "@/lib/hooks";
+import { useMyTeams } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { allSlots as computeAllSlots, defaultKnockoutPairs, roundLabel, slotKey } from "@/lib/knockout";
@@ -96,7 +96,7 @@ export default function NewCompetitionPage() {
 
 function NewCompetitionPageInner() {
   const router = useRouter();
-  const teams = useTeams();
+  const teams = useMyTeams();
   const addTeam = useZyraStore((s) => s.addTeam);
   const addCompetition = useZyraStore((s) => s.addCompetition);
 

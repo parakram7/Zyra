@@ -66,8 +66,20 @@ automatically.
 
 ## What's still manual for v1
 
-- Every signed-in account can edit every team/match — there's no
-  "this coach can only score their own match" restriction yet.
+- Zyra is now multi-tenant: anyone can sign up and register their own
+  school/club ("organization"), and only that organization's members can
+  edit its teams/players/competitions/matches — a coach can no longer edit
+  another school's data. Existing data becomes the first organization
+  automatically the next time you re-run `supabase/schema.sql` (see below);
+  everyone who already had an account is made its admin. There's no invite
+  system yet, so a second coach at your own school needs to be added to
+  `org_members` manually in the Supabase table editor for now.
+- A signed-in coach who isn't part of an organization yet is prompted to
+  register one before they can create anything — "Register organization" on
+  the sign-in-required screens, or directly at `/organizations/new`.
+- "Discover" (linked from the Competitions tab) lists every organization on
+  the platform so you can browse another school's teams and competitions —
+  read-only, the same public data anyone can already see.
 - New teams/players for the real tournament can now be added straight from
   the app: "Teams" tab → "New" to add a team, then "Player" on a team's page
   to add someone to its squad. Sign in first — these are coach-only actions.
