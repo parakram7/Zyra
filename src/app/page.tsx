@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Plus, Radio, TrendingUp } from "lucide-react";
+import { ArrowRight, ChevronRight, Plus, Radio, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/stat";
@@ -9,15 +9,8 @@ import { TeamCrest, PlayerAvatar } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/match-card";
 import { FootballIcon } from "@/components/icons";
 import { useMyMatches, useMyTeams, useTeam, useTeamPlayers } from "@/lib/hooks";
-import {
-  computePlayerStatsForMatch,
-  computeStandings,
-  computeTeamStats,
-  computeTopAssists,
-  computeTopScorers,
-} from "@/lib/stats";
+import { computePlayerCareerStats, computeStandings, computeTeamStats } from "@/lib/stats";
 import { formatMinute, getLiveMinute } from "@/lib/match-clock";
-import { formatMatchDateTime } from "@/lib/format";
 
 export default function HomePage() {
   const matches = useMyMatches();
@@ -39,25 +32,19 @@ export default function HomePage() {
   const recentCompleted = teamMatches
     .filter((m) => m.status === "COMPLETED")
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const lastMatch = recentCompleted[0];
 
   const teamStats = computeTeamStats(matches, primaryTeamId);
-  const topScorers = computeTopScorers(matches, teamPlayers, teams, 3);
-  const topAssists = computeTopAssists(matches, teamPlayers, teams, 3);
+  const topByGA = teamPlayers
+    .map((p) => ({ player: p, career: computePlayerCareerStats(matches, p.id) }))
+    .filter((r) => r.career.goals + r.career.assists > 0)
+    .sort((a, b) => b.career.goals + b.career.assists - (a.career.goals + a.career.assists))
+    .slice(0, 3);
   const standings = computeStandings(
     matches,
     teams,
     teams.map((t) => t.id)
   );
   const leaguePosition = standings.findIndex((r) => r.team.id === primaryTeamId) + 1;
-
-  const lastMatchPerformers = lastMatch
-    ? teamPlayers
-        .map((p) => ({ player: p, stats: computePlayerStatsForMatch(lastMatch, p.id) }))
-        .filter((p) => p.stats.goals > 0 || p.stats.assists > 0)
-        .sort((a, b) => b.stats.goals + b.stats.assists - (a.stats.goals + a.stats.assists))
-        .slice(0, 3)
-    : [];
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 md:px-8 md:pt-10">
@@ -134,54 +121,43 @@ export default function HomePage() {
             {recentCompleted.slice(0, 2).map((m) => (
               <MatchCard key={m.id} match={m} />
             ))}
+            {upcoming.length === 0 && recentCompleted.length === 0 && (
+              <p className="text-sm text-ink-500">No matches yet.</p>
+            )}
           </div>
+        </div>
 
-          {/* Recent performances */}
-          {lastMatchPerformers.length > 0 && (
-            <div className="mt-8">
-              <h2 className="mb-4 font-display text-lg font-semibold text-ink-50">Recent Performances</h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {lastMatchPerformers.map(({ player, stats }) => (
-                  <Link
-                    href={`/players/${player.id}`}
-                    key={player.id}
-                    className="flex items-center gap-3 rounded-2xl border border-ink-700/40 bg-ink-850 p-4 transition-colors hover:border-ink-500/60"
-                  >
-                    <PlayerAvatar name={player.name} size="md" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-ink-50">{player.name}</p>
-                      <p className="mt-0.5 flex items-center gap-2 text-xs text-ink-400">
-                        {stats.goals > 0 && <span className="text-brand-400">{stats.goals}G</span>}
-                        {stats.assists > 0 && <span className="text-sky-400">{stats.assists}A</span>}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+        <Link href="/leaderboards" className="block">
+          <Card className="transition-colors hover:border-ink-500/60">
+            <CardHeader>
+              <CardTitle>Stats</CardTitle>
+              <div className="flex items-center gap-1 text-brand-400">
+                <TrendingUp size={16} />
+                <ChevronRight size={15} />
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Scorers</CardTitle>
-              <TrendingUp size={16} className="text-brand-400" />
             </CardHeader>
             <CardBody className="pt-3">
-              <LeaderList rows={topScorers} suffix="G" />
+              {topByGA.length === 0 ? (
+                <p className="text-sm text-ink-500">No data yet.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {topByGA.map(({ player, career }, i) => (
+                    <div key={player.id} className="flex items-center gap-3">
+                      <span className="w-4 text-xs font-bold text-ink-500">{i + 1}</span>
+                      <PlayerAvatar name={player.name} size="sm" />
+                      <span className="flex-1 truncate text-sm font-medium text-ink-100">{player.name}</span>
+                      <span className="font-display text-sm font-bold text-brand-400">
+                        {career.goals + career.assists}
+                        <span className="ml-0.5 text-[10px] text-ink-500">G+A</span>
+                      </span>
+                    </div>
+                  ))}
+                  <p className="mt-1 text-center text-[11px] font-semibold text-ink-500">See full stats →</p>
+                </div>
+              )}
             </CardBody>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Assists</CardTitle>
-              <TrendingUp size={16} className="text-sky-400" />
-            </CardHeader>
-            <CardBody className="pt-3">
-              <LeaderList rows={topAssists} suffix="A" />
-            </CardBody>
-          </Card>
-        </div>
+        </Link>
       </div>
     </div>
   );
@@ -215,37 +191,6 @@ function LiveScoreRow({
         <TeamCrest team={awayTeam} size="lg" />
         <span className="text-sm font-semibold text-ink-50">{awayTeam.shortName}</span>
       </div>
-    </div>
-  );
-}
-
-function LeaderList({
-  rows,
-  suffix,
-}: {
-  rows: { player: { id: string; name: string }; value: number }[];
-  suffix: string;
-}) {
-  if (rows.length === 0) {
-    return <p className="text-sm text-ink-500">No data yet.</p>;
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      {rows.map((row, i) => (
-        <Link
-          href={`/players/${row.player.id}`}
-          key={row.player.id}
-          className="flex items-center gap-3"
-        >
-          <span className="w-4 text-xs font-bold text-ink-500">{i + 1}</span>
-          <PlayerAvatar name={row.player.name} size="sm" />
-          <span className="flex-1 truncate text-sm font-medium text-ink-100">{row.player.name}</span>
-          <span className="font-display text-sm font-bold text-brand-400">
-            {row.value}
-            <span className="ml-0.5 text-[10px] text-ink-500">{suffix}</span>
-          </span>
-        </Link>
-      ))}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { MatchCard } from "@/components/match-card";
+import { KnockoutBracket, type BracketRound } from "@/components/knockout-bracket";
 import { TeamCrest, PlayerAvatar } from "@/components/ui/avatar";
 import { useCompetitions, useMatches, usePlayers, useTeams } from "@/lib/hooks";
 import { computeStandings, computeTopAssists, computeTopScorers, type StandingsRow } from "@/lib/stats";
@@ -180,39 +181,54 @@ function GroupsAndKnockout({
 
       {(competition.knockoutPairs?.length ?? 0) > 0 && (
         <div>
-          <p className="mb-3 font-display text-sm font-bold text-ink-50">Knockout Draw</p>
-          <div className="flex flex-col gap-2">
-            {competition.knockoutPairs!.map((pair, i) => {
-              const home = slotTeam(pair.home);
-              const away = slotTeam(pair.away);
-              return (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 rounded-xl border border-ink-700/40 bg-ink-850 px-4 py-3"
-                >
-                  <span className="w-7 shrink-0 text-[11px] font-bold text-ink-500">M{i + 1}</span>
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    {home ? <TeamCrest team={home} size="xs" /> : <div className="h-5 w-5 rounded-md bg-ink-700" />}
-                    <span className="truncate text-sm font-semibold text-ink-100">
-                      {slotKey(pair.home)} · {home ? home.name : "TBD"}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-[10.5px] font-bold text-ink-500">vs</span>
-                  <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right">
-                    <span className="truncate text-sm font-semibold text-ink-100">
-                      {slotKey(pair.away)} · {away ? away.name : "TBD"}
-                    </span>
-                    {away ? <TeamCrest team={away} size="xs" /> : <div className="h-5 w-5 rounded-md bg-ink-700" />}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-xs text-ink-500">
-            {roundLabel(competition.knockoutPairs!.length)} — later rounds are filled in once these are played.
-          </p>
+          <p className="mb-4 font-display text-sm font-bold text-ink-50">Knockout Draw</p>
+          <KnockoutBracket rounds={buildBracketRounds(competition.knockoutPairs!, slotTeam)} />
         </div>
       )}
     </div>
   );
+}
+
+function bracketSide(team: Team | undefined, slot: KnockoutSlot) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {team ? <TeamCrest team={team} size="xs" /> : <div className="h-5 w-5 shrink-0 rounded-md bg-ink-700" />}
+      <span className="truncate">{team ? team.name : `${slotKey(slot)} · TBD`}</span>
+    </div>
+  );
+}
+
+function buildBracketRounds(
+  pairs: Competition["knockoutPairs"],
+  slotTeam: (slot: KnockoutSlot) => Team | undefined
+): BracketRound[] {
+  if (!pairs || pairs.length === 0) return [];
+
+  const rounds: BracketRound[] = [
+    {
+      title: roundLabel(pairs.length),
+      matches: pairs.map((pair) => ({
+        top: bracketSide(slotTeam(pair.home), pair.home),
+        bottom: bracketSide(slotTeam(pair.away), pair.away),
+      })),
+    },
+  ];
+
+  let count = pairs.length / 2;
+  let prevPrefix = "M";
+  while (count >= 1) {
+    const label = roundLabel(count);
+    rounds.push({
+      title: label,
+      matches: Array.from({ length: count }).map((_, i) => ({
+        top: <span className="text-ink-400">Winner {prevPrefix}{i * 2 + 1}</span>,
+        bottom: <span className="text-ink-400">Winner {prevPrefix}{i * 2 + 2}</span>,
+      })),
+    });
+    prevPrefix = label === "Final" ? "F" : label.slice(0, 2).toUpperCase();
+    if (count === 1) break;
+    count = count / 2;
+  }
+
+  return rounds;
 }

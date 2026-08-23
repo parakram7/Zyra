@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Crown, Hand, Users } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { PlayerAvatar, TeamCrest } from "@/components/ui/avatar";
@@ -327,6 +328,13 @@ function MatchSetupPageInner({ params }: { params: { id: string } }) {
           </Button>
         </div>
       )}
+
+      <p className="mt-6 text-center text-xs text-ink-500">
+        Casual match, don&apos;t need lineups?{" "}
+        <Link href={`/matches/${match.id}/final-score`} className="font-semibold text-brand-400">
+          Just enter the final score
+        </Link>
+      </p>
     </div>
   );
 }

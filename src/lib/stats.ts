@@ -24,6 +24,15 @@ export function emptyPlayerStats(): PlayerMatchStats {
 }
 
 function wasInSquad(match: Match, playerId: string): "starter" | "sub" | null {
+  // A quick-entry friendly (final score logged after the fact, no lineup
+  // ever built) has no lineup data at all — fall back to "anyone with an
+  // event in this match was on the pitch" so their goals/assists still
+  // count, rather than silently dropping them because there's no XI to
+  // check them against.
+  if (!match.homeLineup && !match.awayLineup) {
+    const involved = match.events.some((e) => e.playerId === playerId || e.secondaryPlayerId === playerId);
+    return involved ? "starter" : null;
+  }
   for (const lineup of [match.homeLineup, match.awayLineup]) {
     if (!lineup) continue;
     if (lineup.startingXI.some((s) => s.playerId === playerId)) return "starter";
@@ -145,6 +154,46 @@ export function computeTeamStats(matches: Match[], teamId: string): TeamStats {
     }
   }
   return stats;
+}
+
+export interface TeamExtendedStats {
+  cleanSheets: number;
+  goalsConcededPerMatch: number;
+  yellowCards: number;
+  redCards: number;
+}
+
+export function computeTeamExtendedStats(matches: Match[], teamId: string): TeamExtendedStats {
+  let cleanSheets = 0;
+  let played = 0;
+  let goalsAgainst = 0;
+  let yellowCards = 0;
+  let redCards = 0;
+
+  for (const match of matches) {
+    if (match.status !== "COMPLETED") continue;
+    const isHome = match.homeTeamId === teamId;
+    const isAway = match.awayTeamId === teamId;
+    if (!isHome && !isAway) continue;
+
+    played++;
+    const ga = isHome ? match.score.away : match.score.home;
+    goalsAgainst += ga;
+    if (ga === 0) cleanSheets++;
+
+    for (const e of match.events) {
+      if (e.teamId !== teamId) continue;
+      if (e.type === "YELLOW_CARD") yellowCards++;
+      if (e.type === "RED_CARD") redCards++;
+    }
+  }
+
+  return {
+    cleanSheets,
+    goalsConcededPerMatch: played > 0 ? goalsAgainst / played : 0,
+    yellowCards,
+    redCards,
+  };
 }
 
 export interface StandingsRow extends TeamStats {

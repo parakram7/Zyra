@@ -2,19 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, MapPin, Plus, Star, Trash2 } from "lucide-react";
+import { CalendarDays, MapPin, Plus, Star, Swords, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/stat";
-import { PlayerAvatar } from "@/components/ui/avatar";
+import { PlayerAvatar, TeamCrest } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/match-card";
-import { useIsFollowingTeam, useTeam, useTeamMatches, useTeamPlayers } from "@/lib/hooks";
-import { computePlayerCareerStats, computeTeamStats } from "@/lib/stats";
+import { useIsFollowingTeam, useTeam, useTeamMatches, useTeamPlayers, useTeams } from "@/lib/hooks";
+import { computePlayerCareerStats, computeTeamExtendedStats, computeTeamStats } from "@/lib/stats";
 import { POSITION_LABELS, type Position } from "@/lib/types";
 import { useZyraStore } from "@/lib/store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuthUser } from "@/lib/supabase/auth";
+import { cn } from "@/lib/cn";
 
 const POSITION_ORDER: Position[] = ["GK", "DF", "MF", "FW"];
 
@@ -23,6 +24,7 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
   const team = useTeam(params.id);
   const players = useTeamPlayers(params.id);
   const matches = useTeamMatches(params.id);
+  const allTeams = useTeams();
   const deleteTeam = useZyraStore((s) => s.deleteTeam);
   const deletePlayer = useZyraStore((s) => s.deletePlayer);
   const followTeam = useZyraStore((s) => s.followTeam);
@@ -55,6 +57,7 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
   }
 
   const stats = computeTeamStats(matches, team.id);
+  const extended = computeTeamExtendedStats(matches, team.id);
   const upcoming = matches
     .filter((m) => m.status === "SCHEDULED")
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -62,6 +65,21 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
   const completed = matches
     .filter((m) => m.status === "COMPLETED")
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const headToHeadMap = new Map<string, { teamId: string; w: number; d: number; l: number; gf: number; ga: number }>();
+  for (const m of completed) {
+    const oppId = m.homeTeamId === team.id ? m.awayTeamId : m.homeTeamId;
+    const gf = m.homeTeamId === team.id ? m.score.home : m.score.away;
+    const ga = m.homeTeamId === team.id ? m.score.away : m.score.home;
+    const rec = headToHeadMap.get(oppId) ?? { teamId: oppId, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+    rec.gf += gf;
+    rec.ga += ga;
+    if (gf > ga) rec.w++;
+    else if (gf === ga) rec.d++;
+    else rec.l++;
+    headToHeadMap.set(oppId, rec);
+  }
+  const headToHead = Array.from(headToHeadMap.values()).sort((a, b) => b.w + b.d + b.l - (a.w + a.d + a.l));
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-6 md:px-8 md:pt-10">
@@ -114,13 +132,19 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
         </CardBody>
       </Card>
 
-      <div className="mb-6 grid grid-cols-3 gap-3 md:grid-cols-6">
+      <div className="mb-3 grid grid-cols-3 gap-3 md:grid-cols-6">
         <StatTile label="Played" value={stats.played} />
         <StatTile label="Won" value={stats.wins} accent />
         <StatTile label="Drawn" value={stats.draws} />
         <StatTile label="Lost" value={stats.losses} />
         <StatTile label="GF" value={stats.goalsFor} />
         <StatTile label="GA" value={stats.goalsAgainst} />
+      </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile label="Clean Sheets" value={extended.cleanSheets} />
+        <StatTile label="GA / Match" value={extended.goalsConcededPerMatch.toFixed(1)} />
+        <StatTile label="Yellow Cards" value={extended.yellowCards} />
+        <StatTile label="Red Cards" value={extended.redCards} />
       </div>
 
       {(live.length > 0 || upcoming.length > 0) && (
@@ -203,6 +227,42 @@ export default function TeamDetailPage({ params }: { params: { id: string } }) {
             {completed.slice(0, 4).map((m) => (
               <MatchCard key={m.id} match={m} />
             ))}
+          </div>
+        </div>
+      )}
+
+      {headToHead.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink-50">
+            <Swords size={17} /> Head-to-Head
+          </h2>
+          <div className="flex flex-col gap-2">
+            {headToHead.map((rec) => {
+              const opp = allTeams.find((t) => t.id === rec.teamId);
+              if (!opp) return null;
+              return (
+                <Link
+                  key={rec.teamId}
+                  href={`/teams/${opp.id}`}
+                  className="flex items-center gap-3 rounded-xl border border-ink-700/40 bg-ink-850 px-4 py-3 transition-colors hover:border-ink-500/60"
+                >
+                  <TeamCrest team={opp} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink-50">{opp.name}</p>
+                    <p className="text-[11px] text-ink-500">
+                      {rec.gf}-{rec.ga} goals · {rec.w + rec.d + rec.l} played
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5 text-xs font-bold tabular-nums">
+                    <span className={cn(rec.w > 0 ? "text-brand-400" : "text-ink-600")}>{rec.w}W</span>
+                    <span className="text-ink-600">·</span>
+                    <span className={cn(rec.d > 0 ? "text-ink-300" : "text-ink-600")}>{rec.d}D</span>
+                    <span className="text-ink-600">·</span>
+                    <span className={cn(rec.l > 0 ? "text-cardred" : "text-ink-600")}>{rec.l}L</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

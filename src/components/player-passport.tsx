@@ -32,17 +32,36 @@ export function PlayerPassport({
     return <div className="mx-auto max-w-3xl px-4 pt-10 text-center text-sm text-ink-500">Player not found.</div>;
   }
 
-  const playerMatches = matches.filter(
-    (m) =>
-      (m.homeTeamId === player.teamId || m.awayTeamId === player.teamId) &&
-      m.status !== "SCHEDULED" &&
-      (m.homeLineup?.startingXI.some((s) => s.playerId === player.id) ||
-        m.homeLineup?.substitutes.includes(player.id) ||
-        m.awayLineup?.startingXI.some((s) => s.playerId === player.id) ||
-        m.awayLineup?.substitutes.includes(player.id))
-  );
+  const playerMatches = matches.filter((m) => {
+    if (m.homeTeamId !== player.teamId && m.awayTeamId !== player.teamId) return false;
+    if (m.status === "SCHEDULED") return false;
+    // Quick-entry friendlies have no lineup — count the player in if they
+    // have a logged event (goal/assist/card) in the match.
+    if (!m.homeLineup && !m.awayLineup) {
+      return m.events.some((e) => e.playerId === player.id || e.secondaryPlayerId === player.id);
+    }
+    return (
+      m.homeLineup?.startingXI.some((s) => s.playerId === player.id) ||
+      m.homeLineup?.substitutes.includes(player.id) ||
+      m.awayLineup?.startingXI.some((s) => s.playerId === player.id) ||
+      m.awayLineup?.substitutes.includes(player.id)
+    );
+  });
 
   const career = computePlayerCareerStats(matches, player.id);
+
+  let wins = 0;
+  let draws = 0;
+  let losses = 0;
+  for (const m of playerMatches) {
+    if (m.status !== "COMPLETED") continue;
+    const isHome = m.homeTeamId === player.teamId;
+    const gf = isHome ? m.score.home : m.score.away;
+    const ga = isHome ? m.score.away : m.score.home;
+    if (gf > ga) wins++;
+    else if (gf === ga) draws++;
+    else losses++;
+  }
 
   const recentMatches = [...playerMatches]
     .filter((m) => m.status === "COMPLETED")
@@ -108,8 +127,11 @@ export function PlayerPassport({
         <StatTile label="Yellows" value={career.yellowCards} />
         <StatTile label="Reds" value={career.redCards} />
       </div>
-      <div className="mb-6 grid grid-cols-1">
-        <StatTile label="Minutes Played" value={career.minutesPlayed} />
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile label="Minutes" value={career.minutesPlayed} />
+        <StatTile label="Won" value={wins} accent />
+        <StatTile label="Drawn" value={draws} />
+        <StatTile label="Lost" value={losses} />
       </div>
 
       {seasonRows.length > 0 && (

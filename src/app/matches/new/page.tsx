@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/field";
 import { AuthGate } from "@/components/auth-gate";
-import { useMyCompetitions, useMyTeams } from "@/lib/hooks";
+import { useMyCompetitions, useMyTeams, useTeams } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 
 const DURATIONS = [
@@ -40,6 +40,7 @@ export default function NewMatchPage() {
 function NewMatchPageInner() {
   const router = useRouter();
   const teams = useMyTeams();
+  const allTeams = useTeams();
   const competitions = useMyCompetitions();
   const createMatch = useZyraStore((s) => s.createMatch);
 
@@ -51,6 +52,8 @@ function NewMatchPageInner() {
   const [competitionId, setCompetitionId] = useState<string>(competitions[0]?.id ?? "");
 
   const sameTeam = homeTeamId === awayTeamId;
+  const isFriendly = !competitionId;
+  const awayOptions = isFriendly ? allTeams.filter((t) => t.id !== homeTeamId) : teams;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,9 +90,10 @@ function NewMatchPageInner() {
               <div>
                 <Label>Away team</Label>
                 <Select value={awayTeamId} onChange={(e) => setAwayTeamId(e.target.value)}>
-                  {teams.map((t) => (
+                  {awayOptions.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
+                      {isFriendly && !teams.some((mine) => mine.id === t.id) ? ` (${t.city})` : ""}
                     </option>
                   ))}
                 </Select>
@@ -97,6 +101,11 @@ function NewMatchPageInner() {
             </div>
             {sameTeam && (
               <p className="text-xs font-medium text-cardred">Home and away teams must be different.</p>
+            )}
+            {isFriendly && (
+              <p className="text-xs text-ink-500">
+                Friendly — the away team can be any registered team on Zyra, not just your own.
+              </p>
             )}
 
             <div>
