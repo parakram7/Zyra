@@ -13,27 +13,33 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { AccountCard } from "@/components/account-card";
-import { useMyOrgId, useOrganization } from "@/lib/hooks";
+import { StatTile } from "@/components/ui/stat";
+import { useMyCompetitions, useMyOrgId, useMyTeams, useOrganization, usePlayers } from "@/lib/hooks";
 import { DEMO_PLAYER_ID } from "@/lib/seed-data";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 const TILES = [
   { href: `/players/${DEMO_PLAYER_ID}`, label: "My Passport", icon: IdCard },
-  { href: "/leaderboards", label: "Leaderboards", icon: Trophy },
+  { href: "/leaderboards", label: "Stats", icon: Trophy },
   { href: "/teams", label: "Following", icon: Star },
   { href: "/discover", label: "Discover", icon: Compass },
 ];
 
 export default function ProfilePage() {
   const org = useOrganization(useMyOrgId());
+  const teams = useMyTeams();
+  const competitions = useMyCompetitions();
+  const allPlayers = usePlayers();
+  const teamIds = new Set(teams.map((t) => t.id));
+  const playerCount = allPlayers.filter((p) => teamIds.has(p.teamId)).length;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pt-6 md:px-8 md:pt-10">
+    <div className="mx-auto max-w-3xl px-4 pt-6 md:px-8 md:pt-10">
       <PageHeader title="More" subtitle="Your Zyra profile" />
 
       <AccountCard />
 
-      {isSupabaseConfigured() && org && (
+      {isSupabaseConfigured() && org ? (
         <Link
           href={`/discover/${org.id}`}
           className="mb-6 flex items-center gap-4 rounded-2xl border border-ink-700/40 bg-ink-850 p-4 transition-colors hover:border-ink-500/60"
@@ -47,8 +53,15 @@ export default function ProfilePage() {
           </div>
           <Shield size={16} className="shrink-0 text-ink-500" />
         </Link>
-      )}
+      ) : null}
 
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        <StatTile label="Teams" value={teams.length} accent />
+        <StatTile label="Players" value={playerCount} />
+        <StatTile label="Competitions" value={competitions.length} />
+      </div>
+
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-500">Quick Links</p>
       <div className="mb-6 grid grid-cols-2 gap-3">
         {TILES.map(({ href, label, icon: Icon }) => (
           <Link

@@ -152,6 +152,7 @@ interface ZyraState {
   subscribeRealtime: () => () => void;
 
   createOrganization: (input: NewOrganizationInput) => Promise<string>;
+  generateGroupFixtures: (competitionId: string) => void;
   followTeam: (userId: string, teamId: string) => void;
   unfollowTeam: (userId: string, teamId: string) => void;
 
@@ -704,6 +705,60 @@ export const useZyraStore = create<ZyraState>()(
             .catch((err) => console.error("Zyra: failed to sync new competition", err));
         }
         return newId;
+      },
+
+      generateGroupFixtures: (competitionId) => {
+        const competition = get().competitions.find((c) => c.id === competitionId);
+        if (!competition || !competition.groups) return;
+
+        const existingPairs = new Set(
+          get()
+            .matches.filter((m) => m.competitionId === competitionId)
+            .map((m) => [m.homeTeamId, m.awayTeamId].sort().join("|"))
+        );
+
+        const newMatches: Match[] = [];
+        let dayOffset = 3;
+        for (const group of competition.groups) {
+          const teamIds = group.teamIds;
+          for (let i = 0; i < teamIds.length; i++) {
+            for (let j = i + 1; j < teamIds.length; j++) {
+              const key = [teamIds[i], teamIds[j]].sort().join("|");
+              if (existingPairs.has(key)) continue;
+              const homeTeam = get().teams.find((t) => t.id === teamIds[i]);
+              newMatches.push({
+                id: id("match"),
+                orgId: competition.orgId,
+                competitionId,
+                homeTeamId: teamIds[i],
+                awayTeamId: teamIds[j],
+                date: new Date(Date.now() + dayOffset * 86400000).toISOString(),
+                venue: homeTeam?.homeGround ?? "TBD",
+                status: "SCHEDULED",
+                durationMinutes: 70,
+                halfLengthMinutes: 35,
+                currentMinute: 0,
+                currentHalf: null,
+                score: { home: 0, away: 0 },
+                homeLineup: null,
+                awayLineup: null,
+                events: [],
+                clockRunning: false,
+                clockStartedAt: null,
+                clockBaseMinute: 0,
+              });
+              dayOffset += 3;
+            }
+          }
+        }
+
+        if (newMatches.length === 0) return;
+        set({ matches: [...get().matches, ...newMatches] });
+        if (isSupabaseConfigured()) {
+          newMatches.forEach((m) =>
+            remote.insertMatch(m).catch((err) => console.error("Zyra: failed to sync generated fixture", err))
+          );
+        }
       },
 
       createOrganization: async (input) => {

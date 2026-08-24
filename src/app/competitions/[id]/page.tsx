@@ -1,26 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Shuffle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/field";
 import { MatchCard } from "@/components/match-card";
 import { KnockoutBracket, type BracketRound } from "@/components/knockout-bracket";
-import { TeamCrest, PlayerAvatar } from "@/components/ui/avatar";
+import { StatsTable } from "@/components/stats-table";
+import { TeamCrest } from "@/components/ui/avatar";
 import { useCompetitions, useMatches, usePlayers, useTeams } from "@/lib/hooks";
-import { computeStandings, computeTopAssists, computeTopScorers, type StandingsRow } from "@/lib/stats";
+import { useZyraStore } from "@/lib/store";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { useAuthUser } from "@/lib/supabase/auth";
+import { computeStandings, type StandingsRow } from "@/lib/stats";
 import { roundLabel, slotKey } from "@/lib/knockout";
 import { cn } from "@/lib/cn";
 import type { Competition, KnockoutSlot, Match, Team } from "@/lib/types";
 
-const TABS = ["Standings", "Fixtures", "Top Scorers", "Top Assists"] as const;
+const TABS = ["Standings", "Fixtures", "Stats"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function CompetitionDetailPage({ params }: { params: { id: string } }) {
+  return (
+    <Suspense fallback={null}>
+      <CompetitionDetailPageInner params={params} />
+    </Suspense>
+  );
+}
+
+function CompetitionDetailPageInner({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams();
+  const initialTab = TABS.find((t) => t.toLowerCase() === searchParams.get("tab")) ?? "Standings";
+
   const competitions = useCompetitions();
   const teams = useTeams();
   const players = usePlayers();
   const matches = useMatches();
-  const [tab, setTab] = useState<Tab>("Standings");
+  const generateGroupFixtures = useZyraStore((s) => s.generateGroupFixtures);
+  const user = useAuthUser();
+  const canEdit = !isSupabaseConfigured() || !!user;
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [groupFilter, setGroupFilter] = useState<string>("all");
 
   const competition = competitions.find((c) => c.id === params.id);
   if (!competition) {
@@ -30,8 +53,18 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
   const compMatches = matches.filter((m) => m.competitionId === competition.id);
   const compPlayers = players.filter((p) => competition.teamIds.includes(p.teamId));
   const standings = computeStandings(compMatches, teams, competition.teamIds);
-  const topScorers = computeTopScorers(compMatches, compPlayers, teams, 10);
-  const topAssists = computeTopAssists(compMatches, compPlayers, teams, 10);
+
+  function groupOf(match: Match): string | null {
+    if (!competition!.groups) return null;
+    const g = competition!.groups.find(
+      (grp) => grp.teamIds.includes(match.homeTeamId) && grp.teamIds.includes(match.awayTeamId)
+    );
+    return g?.label ?? null;
+  }
+
+  const visibleMatches = compMatches
+    .filter((m) => groupFilter === "all" || groupOf(m) === groupFilter)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-6 md:px-8 md:pt-10">
@@ -61,39 +94,55 @@ export default function CompetitionDetailPage({ params }: { params: { id: string
       )}
 
       {tab === "Fixtures" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {compMatches
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .map((m) => (
-              <MatchCard key={m.id} match={m} />
-            ))}
+        <div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            {competition.format === "groups" && competition.groups && competition.groups.length > 0 ? (
+              <Select
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
+                className="!w-auto"
+              >
+                <option value="all">All Groups</option>
+                {competition.groups.map((g) => (
+                  <option key={g.label} value={g.label}>
+                    Group {g.label}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <span />
+            )}
+            {canEdit && competition.format === "groups" && (
+              <Button size="sm" variant="outline" onClick={() => generateGroupFixtures(competition.id)}>
+                <Shuffle size={14} /> Generate Fixtures
+              </Button>
+            )}
+          </div>
+
+          {visibleMatches.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-ink-700 py-16 text-center">
+              <p className="text-sm text-ink-500">
+                {compMatches.length === 0 ? "No fixtures scheduled yet." : "No fixtures in this group yet."}
+              </p>
+              {canEdit && compMatches.length === 0 && (
+                <p className="max-w-xs text-xs text-ink-600">
+                  {competition.format === "groups"
+                    ? "Tap “Generate Fixtures” above to round-robin every group automatically, or add matches one at a time from Matches → New."
+                    : "Add matches for this competition from Matches → New."}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {visibleMatches.map((m) => (
+                <MatchCard key={m.id} match={m} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {(tab === "Top Scorers" || tab === "Top Assists") && (
-        <div className="rounded-2xl border border-ink-700/40 bg-ink-850 p-2">
-          {(tab === "Top Scorers" ? topScorers : topAssists).length === 0 && (
-            <p className="px-3 py-6 text-center text-sm text-ink-500">No data yet.</p>
-          )}
-          {(tab === "Top Scorers" ? topScorers : topAssists).map((row, i) => (
-            <Link
-              href={`/players/${row.player.id}`}
-              key={row.player.id}
-              className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-ink-800/50"
-            >
-              <span className="w-5 text-center text-xs font-bold text-ink-500">{i + 1}</span>
-              <PlayerAvatar name={row.player.name} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ink-100">{row.player.name}</p>
-                <p className="text-[11px] text-ink-500">{row.team?.name}</p>
-              </div>
-              <span className="font-display text-lg font-bold tabular-nums text-brand-400">
-                {row.value}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
+      {tab === "Stats" && <StatsTable players={compPlayers} matches={compMatches} teams={teams} />}
     </div>
   );
 }

@@ -8,18 +8,37 @@ import { StatTile } from "@/components/ui/stat";
 import { TeamCrest, PlayerAvatar } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/match-card";
 import { FootballIcon } from "@/components/icons";
-import { useMyMatches, useMyTeams, useTeam, useTeamPlayers } from "@/lib/hooks";
+import { useMyCompetitions, useMyMatches, useMyTeams, usePlayers, useTeam, useTeamPlayers } from "@/lib/hooks";
 import { computePlayerCareerStats, computeStandings, computeTeamStats } from "@/lib/stats";
 import { formatMinute, getLiveMinute } from "@/lib/match-clock";
 
 export default function HomePage() {
   const matches = useMyMatches();
   const teams = useMyTeams();
+  const competitions = useMyCompetitions();
+  const allPlayers = usePlayers();
   const primaryTeamId = teams[0]?.id;
   const team = useTeam(primaryTeamId);
   const teamPlayers = useTeamPlayers(primaryTeamId);
 
   if (!team) return null;
+
+  // The tournament to send "Stats" to: whichever has a match live right
+  // now, else whichever played most recently, else the org's first one.
+  const activeCompetition = [...competitions].sort((a, b) => {
+    const lastMatchTime = (compId: string) =>
+      Math.max(0, ...matches.filter((m) => m.competitionId === compId).map((m) => new Date(m.date).getTime()));
+    const aLive = matches.some((m) => m.competitionId === a.id && m.status === "LIVE") ? Infinity : lastMatchTime(a.id);
+    const bLive = matches.some((m) => m.competitionId === b.id && m.status === "LIVE") ? Infinity : lastMatchTime(b.id);
+    return bLive - aLive;
+  })[0];
+  const statsPlayers = activeCompetition
+    ? allPlayers.filter((p) => activeCompetition.teamIds.includes(p.teamId))
+    : teamPlayers;
+  const statsMatches = activeCompetition
+    ? matches.filter((m) => m.competitionId === activeCompetition.id)
+    : matches;
+  const statsHref = activeCompetition ? `/competitions/${activeCompetition.id}?tab=stats` : "/leaderboards";
 
   const liveMatch = matches.find((m) => m.status === "LIVE");
   const teamMatches = matches.filter(
@@ -34,8 +53,8 @@ export default function HomePage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const teamStats = computeTeamStats(matches, primaryTeamId);
-  const topByGA = teamPlayers
-    .map((p) => ({ player: p, career: computePlayerCareerStats(matches, p.id) }))
+  const topByGA = statsPlayers
+    .map((p) => ({ player: p, career: computePlayerCareerStats(statsMatches, p.id) }))
     .filter((r) => r.career.goals + r.career.assists > 0)
     .sort((a, b) => b.career.goals + b.career.assists - (a.career.goals + a.career.assists))
     .slice(0, 3);
@@ -127,10 +146,10 @@ export default function HomePage() {
           </div>
         </div>
 
-        <Link href="/leaderboards" className="block">
+        <Link href={statsHref} className="block">
           <Card className="transition-colors hover:border-ink-500/60">
             <CardHeader>
-              <CardTitle>Stats</CardTitle>
+              <CardTitle>{activeCompetition ? `${activeCompetition.name} Stats` : "Stats"}</CardTitle>
               <div className="flex items-center gap-1 text-brand-400">
                 <TrendingUp size={16} />
                 <ChevronRight size={15} />
