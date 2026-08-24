@@ -33,11 +33,13 @@ import type {
   MatchEventType,
   Organization,
   Player,
+  PlayerProfile,
+  PreferredFoot,
   Team,
   TeamLineup,
 } from "./types";
 import { isSupabaseConfigured, getSupabase } from "./supabase/client";
-import { fetchAllData } from "./supabase/api";
+import { fetchAllData, type CompetitionAdmin } from "./supabase/api";
 import * as remote from "./supabase/api";
 import { matchEventFromRow, matchFromRow } from "./supabase/mappers";
 
@@ -123,18 +125,22 @@ export interface NewCompetitionInput {
   teamIds: string[];
   groups?: CompetitionGroup[];
   knockoutPairs?: KnockoutPair[];
+  isIndependent?: boolean; // true = no owning org; the creator becomes its founding head
+}
+
+export interface NewPlayerProfileInput {
+  name: string;
+  dateOfBirth?: string;
+  nationality?: string;
+  preferredFoot?: PreferredFoot;
 }
 
 export interface NewPlayerInput {
   teamId: string;
-  name: string;
-  shortName?: string;
+  profileId: string; // an existing or newly-created PlayerProfile
   shirtNumber: number;
   position: Player["position"];
-  preferredFoot: Player["preferredFoot"];
-  dateOfBirth: string;
   category: string;
-  nationality: string;
 }
 
 interface ZyraState {
@@ -143,7 +149,9 @@ interface ZyraState {
   followedTeamIds: string[];
   teams: Team[];
   players: Player[];
+  playerProfiles: PlayerProfile[];
   competitions: Competition[];
+  competitionAdmins: CompetitionAdmin[];
   matches: Match[];
   hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
@@ -155,6 +163,10 @@ interface ZyraState {
   generateGroupFixtures: (competitionId: string) => void;
   followTeam: (userId: string, teamId: string) => void;
   unfollowTeam: (userId: string, teamId: string) => void;
+  requestJoinCompetition: (competitionId: string, teamId: string, userId: string) => void;
+  approveTeamRequest: (competitionId: string, teamId: string) => void;
+  rejectTeamRequest: (competitionId: string, teamId: string) => void;
+  createPlayerProfile: (input: NewPlayerProfileInput) => string;
 
   createMatch: (input: NewMatchInput) => string;
   setLineup: (matchId: string, side: "home" | "away", lineup: TeamLineup) => void;
@@ -177,7 +189,7 @@ interface ZyraState {
   deleteTeam: (teamId: string) => void;
   addPlayer: (input: NewPlayerInput) => string;
   deletePlayer: (playerId: string) => void;
-  addCompetition: (input: NewCompetitionInput) => string;
+  addCompetition: (input: NewCompetitionInput) => Promise<string>;
 
   resetDemoData: () => void;
 }
@@ -227,7 +239,9 @@ export const useZyraStore = create<ZyraState>()(
       followedTeamIds: [],
       teams: seedTeams,
       players: seedPlayers,
+      playerProfiles: [],
       competitions: seedCompetitions,
+      competitionAdmins: [],
       matches: seedMatches,
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
@@ -238,7 +252,9 @@ export const useZyraStore = create<ZyraState>()(
           organizations: data.organizations,
           teams: data.teams,
           players: data.players,
+          playerProfiles: data.playerProfiles,
           competitions: data.competitions,
+          competitionAdmins: data.competitionAdmins,
           matches: data.matches,
           followedTeamIds: data.followedTeamIds,
         });
@@ -659,22 +675,44 @@ export const useZyraStore = create<ZyraState>()(
       },
 
       addPlayer: (input) => {
+        const profile = get().playerProfiles.find((p) => p.id === input.profileId);
         const newId = id("player");
         const player: Player = {
           id: newId,
+          profileId: input.profileId,
           teamId: input.teamId,
-          name: input.name,
-          shortName: input.shortName,
+          name: profile?.name ?? "Unknown Player",
           shirtNumber: input.shirtNumber,
           position: input.position,
-          preferredFoot: input.preferredFoot,
-          dateOfBirth: input.dateOfBirth,
+          preferredFoot: profile?.preferredFoot ?? "Right",
+          dateOfBirth: profile?.dateOfBirth ?? "",
           category: input.category,
-          nationality: input.nationality,
+          nationality: profile?.nationality ?? "",
         };
         set({ players: [...get().players, player] });
         if (isSupabaseConfigured()) {
           remote.insertPlayer(player).catch((err) => console.error("Zyra: failed to sync new player", err));
+        }
+        return newId;
+      },
+
+      createPlayerProfile: (input) => {
+        const newId = id("profile");
+        const profile: PlayerProfile = {
+          id: newId,
+          name: input.name,
+          dateOfBirth: input.dateOfBirth,
+          nationality: input.nationality,
+          preferredFoot: input.preferredFoot,
+        };
+        set({ playerProfiles: [...get().playerProfiles, profile] });
+        if (isSupabaseConfigured()) {
+          const sb = getSupabase();
+          sb.auth.getUser().then(({ data }) => {
+            remote
+              .insertPlayerProfile(profile, data.user?.id ?? null)
+              .catch((err) => console.error("Zyra: failed to sync new player profile", err));
+          });
         }
         return newId;
       },
@@ -686,24 +724,44 @@ export const useZyraStore = create<ZyraState>()(
         }
       },
 
-      addCompetition: (input) => {
+      addCompetition: async (input) => {
         const newId = id("competition");
+        const orgId = input.isIndependent ? null : get().currentOrgId ?? DEMO_ORG_ID;
         const competition: Competition = {
           id: newId,
-          orgId: get().currentOrgId ?? DEMO_ORG_ID,
+          orgId,
           name: input.name,
           season: input.season,
           format: input.format,
           teamIds: input.teamIds,
+          pendingTeamIds: [],
           groups: input.groups,
           knockoutPairs: input.knockoutPairs,
         };
-        set({ competitions: [...get().competitions, competition] });
+
+        let newAdmin: CompetitionAdmin | null = null;
         if (isSupabaseConfigured()) {
-          remote
-            .insertCompetition(competition)
-            .catch((err) => console.error("Zyra: failed to sync new competition", err));
+          // Awaited: an independent tournament's team links can't be
+          // written until its founding head exists server-side — RLS
+          // depends on it — so this can't be optimistic-local-first like
+          // most other actions.
+          await remote.insertCompetitionRow(competition);
+          if (input.isIndependent) {
+            const sb = getSupabase();
+            const { data } = await sb.auth.getUser();
+            const userId = data.user?.id;
+            if (userId) {
+              await remote.becomeCompetitionHead(newId, userId);
+              newAdmin = { competitionId: newId, userId };
+            }
+          }
+          await remote.linkTeamsToCompetition(newId, competition.teamIds);
         }
+
+        set({
+          competitions: [...get().competitions, competition],
+          competitionAdmins: newAdmin ? [...get().competitionAdmins, newAdmin] : get().competitionAdmins,
+        });
         return newId;
       },
 
@@ -795,6 +853,53 @@ export const useZyraStore = create<ZyraState>()(
         }
       },
 
+      requestJoinCompetition: (competitionId, teamId, userId) => {
+        set({
+          competitions: get().competitions.map((c) =>
+            c.id === competitionId && !c.pendingTeamIds.includes(teamId) && !c.teamIds.includes(teamId)
+              ? { ...c, pendingTeamIds: [...c.pendingTeamIds, teamId] }
+              : c
+          ),
+        });
+        if (isSupabaseConfigured()) {
+          remote
+            .requestTeamJoinCompetition(competitionId, teamId, userId)
+            .catch((err) => console.error("Zyra: failed to sync join request", err));
+        }
+      },
+
+      approveTeamRequest: (competitionId, teamId) => {
+        set({
+          competitions: get().competitions.map((c) =>
+            c.id === competitionId
+              ? {
+                  ...c,
+                  pendingTeamIds: c.pendingTeamIds.filter((id_) => id_ !== teamId),
+                  teamIds: c.teamIds.includes(teamId) ? c.teamIds : [...c.teamIds, teamId],
+                }
+              : c
+          ),
+        });
+        if (isSupabaseConfigured()) {
+          remote
+            .setCompetitionTeamStatus(competitionId, teamId, "approved")
+            .catch((err) => console.error("Zyra: failed to sync team approval", err));
+        }
+      },
+
+      rejectTeamRequest: (competitionId, teamId) => {
+        set({
+          competitions: get().competitions.map((c) =>
+            c.id === competitionId ? { ...c, pendingTeamIds: c.pendingTeamIds.filter((id_) => id_ !== teamId) } : c
+          ),
+        });
+        if (isSupabaseConfigured()) {
+          remote
+            .setCompetitionTeamStatus(competitionId, teamId, "rejected")
+            .catch((err) => console.error("Zyra: failed to sync team rejection", err));
+        }
+      },
+
       resetDemoData: () =>
         set({
           organizations: seedOrganizations,
@@ -802,7 +907,9 @@ export const useZyraStore = create<ZyraState>()(
           followedTeamIds: [],
           teams: seedTeams,
           players: seedPlayers,
+          playerProfiles: [],
           competitions: seedCompetitions,
+          competitionAdmins: [],
           matches: seedMatches,
         }),
     }),
@@ -816,7 +923,9 @@ export const useZyraStore = create<ZyraState>()(
         followedTeamIds: state.followedTeamIds,
         teams: state.teams,
         players: state.players,
+        playerProfiles: state.playerProfiles,
         competitions: state.competitions,
+        competitionAdmins: state.competitionAdmins,
         matches: state.matches,
       }),
     }

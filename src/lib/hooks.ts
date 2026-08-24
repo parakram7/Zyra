@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useZyraStore } from "./store";
 import { getLiveMinute } from "./match-clock";
-import type { Match } from "./types";
+import { isSupabaseConfigured } from "./supabase/client";
+import { useAuthUser } from "./supabase/auth";
+import type { Competition, Match } from "./types";
 
 export function useLiveMinute(match: Match | undefined) {
   const [, forceTick] = useState(0);
@@ -108,4 +110,28 @@ export function useTeamMatches(teamId: string | null | undefined) {
   return useZyraStore((s) =>
     s.matches.filter((m) => m.homeTeamId === teamId || m.awayTeamId === teamId)
   );
+}
+
+export function usePlayerProfiles() {
+  return useZyraStore((s) => s.playerProfiles);
+}
+
+// Whether the signed-in user can manage a competition's structure
+// (groups, knockout draw, fixtures, team approvals) — true for an org
+// member on their own org's competition, or a tournament head on an
+// independent one. Always true in local demo mode.
+export function useCanManageCompetition(competition: Competition | null | undefined) {
+  const user = useAuthUser();
+  const myOrgId = useMyOrgId();
+  const admins = useZyraStore((s) => s.competitionAdmins);
+  if (!isSupabaseConfigured()) return true;
+  if (!competition || !user) return false;
+  if (competition.orgId && competition.orgId === myOrgId) return true;
+  return admins.some((a) => a.competitionId === competition.id && a.userId === user.id);
+}
+
+export function useIsCompetitionHead(competitionId: string | null | undefined) {
+  const user = useAuthUser();
+  const admins = useZyraStore((s) => s.competitionAdmins);
+  return !!user && !!competitionId && admins.some((a) => a.competitionId === competitionId && a.userId === user.id);
 }

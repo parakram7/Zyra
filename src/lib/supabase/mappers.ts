@@ -10,6 +10,7 @@ import type {
   MatchHalf,
   Organization,
   Player,
+  PlayerProfile,
   Team,
   TeamLineup,
 } from "@/lib/types";
@@ -65,6 +66,7 @@ export function teamToRow(team: Team) {
 export function playerFromRow(row: any): Player {
   return {
     id: row.id,
+    profileId: row.profile_id ?? undefined,
     teamId: row.team_id,
     name: row.name,
     shortName: row.short_name ?? undefined,
@@ -82,6 +84,7 @@ export function playerFromRow(row: any): Player {
 export function playerToRow(player: Player) {
   return {
     id: player.id,
+    profile_id: player.profileId ?? null,
     team_id: player.teamId,
     name: player.name,
     short_name: player.shortName ?? null,
@@ -96,7 +99,30 @@ export function playerToRow(player: Player) {
   };
 }
 
-export function competitionFromRow(row: any, teamIds: string[]): Competition {
+export function playerProfileFromRow(row: any): PlayerProfile {
+  return {
+    id: row.id,
+    name: row.name,
+    dateOfBirth: row.date_of_birth ?? undefined,
+    nationality: row.nationality ?? undefined,
+    preferredFoot: row.preferred_foot ?? undefined,
+    photoUrl: row.photo_url ?? undefined,
+  };
+}
+
+export function playerProfileToRow(profile: PlayerProfile, createdBy: string | null) {
+  return {
+    id: profile.id,
+    name: profile.name,
+    date_of_birth: profile.dateOfBirth ?? null,
+    nationality: profile.nationality ?? null,
+    preferred_foot: profile.preferredFoot ?? null,
+    photo_url: profile.photoUrl ?? null,
+    created_by: createdBy,
+  };
+}
+
+export function competitionFromRow(row: any, teamIds: string[], pendingTeamIds: string[]): Competition {
   return {
     id: row.id,
     orgId: row.org_id,
@@ -104,6 +130,7 @@ export function competitionFromRow(row: any, teamIds: string[]): Competition {
     season: row.season,
     format: row.format,
     teamIds,
+    pendingTeamIds,
     groups: row.groups ?? undefined,
     knockoutPairs: row.knockout_pairs ?? undefined,
   };

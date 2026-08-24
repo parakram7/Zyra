@@ -11,7 +11,7 @@ import { MatchCard } from "@/components/match-card";
 import { KnockoutBracket, type BracketRound } from "@/components/knockout-bracket";
 import { StatsTable } from "@/components/stats-table";
 import { TeamCrest } from "@/components/ui/avatar";
-import { useCompetitions, useMatches, usePlayers, useTeams } from "@/lib/hooks";
+import { useCanManageCompetition, useCompetitions, useMatches, useMyTeams, usePlayers, useTeams } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuthUser } from "@/lib/supabase/auth";
@@ -20,7 +20,7 @@ import { roundLabel, slotKey } from "@/lib/knockout";
 import { cn } from "@/lib/cn";
 import type { Competition, KnockoutSlot, Match, Team } from "@/lib/types";
 
-const TABS = ["Standings", "Fixtures", "Stats"] as const;
+const TABS = ["Standings", "Fixtures", "Stats", "Teams"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function CompetitionDetailPage({ params }: { params: { id: string } }) {
@@ -37,15 +37,20 @@ function CompetitionDetailPageInner({ params }: { params: { id: string } }) {
 
   const competitions = useCompetitions();
   const teams = useTeams();
+  const myTeams = useMyTeams();
   const players = usePlayers();
   const matches = useMatches();
   const generateGroupFixtures = useZyraStore((s) => s.generateGroupFixtures);
+  const requestJoinCompetition = useZyraStore((s) => s.requestJoinCompetition);
+  const approveTeamRequest = useZyraStore((s) => s.approveTeamRequest);
+  const rejectTeamRequest = useZyraStore((s) => s.rejectTeamRequest);
   const user = useAuthUser();
   const canEdit = !isSupabaseConfigured() || !!user;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [groupFilter, setGroupFilter] = useState<string>("all");
 
   const competition = competitions.find((c) => c.id === params.id);
+  const canManage = useCanManageCompetition(competition);
   if (!competition) {
     return <div className="mx-auto max-w-3xl px-4 pt-10 text-center text-sm text-ink-500">Competition not found.</div>;
   }
@@ -143,6 +148,137 @@ function CompetitionDetailPageInner({ params }: { params: { id: string } }) {
       )}
 
       {tab === "Stats" && <StatsTable players={compPlayers} matches={compMatches} teams={teams} />}
+
+      {tab === "Teams" && (
+        <TeamsPanel
+          competition={competition}
+          teams={teams}
+          myTeams={myTeams}
+          canManage={canManage}
+          onRequestJoin={(teamId) => requestJoinCompetition(competition.id, teamId, user?.id ?? "demo-user")}
+          onApprove={(teamId) => approveTeamRequest(competition.id, teamId)}
+          onReject={(teamId) => rejectTeamRequest(competition.id, teamId)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TeamsPanel({
+  competition,
+  teams,
+  myTeams,
+  canManage,
+  onRequestJoin,
+  onApprove,
+  onReject,
+}: {
+  competition: Competition;
+  teams: Team[];
+  myTeams: Team[];
+  canManage: boolean;
+  onRequestJoin: (teamId: string) => void;
+  onApprove: (teamId: string) => void;
+  onReject: (teamId: string) => void;
+}) {
+  const [requestPickerOpen, setRequestPickerOpen] = useState(false);
+
+  const approvedTeams = competition.teamIds
+    .map((id) => teams.find((t) => t.id === id))
+    .filter((t): t is Team => !!t);
+  const pendingTeams = competition.pendingTeamIds
+    .map((id) => teams.find((t) => t.id === id))
+    .filter((t): t is Team => !!t);
+
+  const alreadyIn = new Set([...competition.teamIds, ...competition.pendingTeamIds]);
+  const requestableTeams = myTeams.filter((t) => !alreadyIn.has(t.id));
+
+  return (
+    <div className="flex flex-col gap-6">
+      {canManage && pendingTeams.length > 0 && (
+        <div>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+            Pending Requests ({pendingTeams.length})
+          </p>
+          <div className="flex flex-col gap-2">
+            {pendingTeams.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.06] px-3.5 py-3"
+              >
+                <TeamCrest team={t} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink-50">{t.name}</p>
+                  <p className="text-[11px] text-ink-500">{t.city}</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => onReject(t.id)}>
+                  Reject
+                </Button>
+                <Button size="sm" onClick={() => onApprove(t.id)}>
+                  Approve
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+          Teams ({approvedTeams.length})
+        </p>
+        {approvedTeams.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-ink-700 py-10 text-center text-sm text-ink-500">
+            No teams have joined yet.
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {approvedTeams.map((t) => (
+              <Link
+                key={t.id}
+                href={`/teams/${t.id}`}
+                className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-800/40 px-3.5 py-3 hover:border-ink-500"
+              >
+                <TeamCrest team={t} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink-50">{t.name}</p>
+                  <p className="text-[11px] text-ink-500">{t.city}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!canManage && requestableTeams.length > 0 && (
+        <div>
+          {requestPickerOpen ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-ink-700 bg-ink-900/40 p-3.5">
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-500">
+                Request one of your teams to join
+              </p>
+              {requestableTeams.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    onRequestJoin(t.id);
+                    setRequestPickerOpen(false);
+                  }}
+                  className="flex items-center gap-2.5 rounded-lg border border-ink-700 bg-ink-800/50 px-3 py-2 text-left hover:border-brand-400"
+                >
+                  <TeamCrest team={t} size="xs" />
+                  <span className="truncate text-xs font-semibold text-ink-100">{t.name}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Button variant="outline" className="w-full justify-center" onClick={() => setRequestPickerOpen(true)}>
+              Request to Join
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

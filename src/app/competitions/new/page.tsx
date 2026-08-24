@@ -8,7 +8,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/field";
 import { TeamCrest } from "@/components/ui/avatar";
 import { AuthGate } from "@/components/auth-gate";
-import { useMyTeams } from "@/lib/hooks";
+import { useMyTeams, useTeams } from "@/lib/hooks";
 import { useZyraStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { allSlots as computeAllSlots, defaultKnockoutPairs, roundLabel, slotKey } from "@/lib/knockout";
@@ -96,7 +96,8 @@ export default function NewCompetitionPage() {
 
 function NewCompetitionPageInner() {
   const router = useRouter();
-  const teams = useMyTeams();
+  const myTeams = useMyTeams();
+  const allTeams = useTeams();
   const addTeam = useZyraStore((s) => s.addTeam);
   const addCompetition = useZyraStore((s) => s.addCompetition);
 
@@ -104,6 +105,12 @@ function NewCompetitionPageInner() {
   const [name, setName] = useState("");
   const [season, setSeason] = useState(String(new Date().getFullYear()));
   const [format, setFormat] = useState<CompetitionFormat>("league");
+  const [isIndependent, setIsIndependent] = useState(false);
+
+  // An independent tournament (its own heads, not tied to any one school)
+  // can draw teams from any organization on the platform; an org-owned
+  // competition only offers that org's own squads.
+  const teams = isIndependent ? allTeams : myTeams;
 
   // league mode
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
@@ -164,12 +171,13 @@ function NewCompetitionPageInner() {
     );
   }
 
-  function finishLeague() {
-    const compId = addCompetition({
+  async function finishLeague() {
+    const compId = await addCompetition({
       name: name.trim(),
       season: season.trim() || String(new Date().getFullYear()),
       format: "league",
       teamIds: selectedTeamIds,
+      isIndependent,
     });
     router.push(`/competitions/${compId}`);
   }
@@ -227,14 +235,15 @@ function NewCompetitionPageInner() {
     setKnockoutPairs((prev) => prev.map((p, i) => (i === idx ? { ...p, [side]: { group, rank } } : p)));
   }
 
-  function finishGroups() {
-    const compId = addCompetition({
+  async function finishGroups() {
+    const compId = await addCompetition({
       name: name.trim(),
       season: season.trim() || String(new Date().getFullYear()),
       format: "groups",
       teamIds: groups.flatMap((g) => g.teamIds),
       groups,
       knockoutPairs,
+      isIndependent,
     });
     router.push(`/competitions/${compId}`);
   }
@@ -280,6 +289,38 @@ function NewCompetitionPageInner() {
                     <span className="mt-0.5 block text-[10.5px] font-medium text-ink-500">Group stage, then a bracket</span>
                   </button>
                 </div>
+              </div>
+              <div>
+                <Label>Who runs this?</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsIndependent(false)}
+                    className={cn(
+                      "flex-1 rounded-xl border px-3 py-3 text-center text-sm font-semibold transition-colors",
+                      !isIndependent ? "border-brand-400 bg-brand-500/10 text-brand-300" : "border-ink-700 bg-ink-800/50 text-ink-300"
+                    )}
+                  >
+                    My Organization
+                    <span className="mt-0.5 block text-[10.5px] font-medium text-ink-500">Owned by your school/club</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsIndependent(true)}
+                    className={cn(
+                      "flex-1 rounded-xl border px-3 py-3 text-center text-sm font-semibold transition-colors",
+                      isIndependent ? "border-brand-400 bg-brand-500/10 text-brand-300" : "border-ink-700 bg-ink-800/50 text-ink-300"
+                    )}
+                  >
+                    Independent Tournament
+                    <span className="mt-0.5 block text-[10.5px] font-medium text-ink-500">Any school can enter a team</span>
+                  </button>
+                </div>
+                {isIndependent && (
+                  <p className="mt-2 text-[11px] text-ink-500">
+                    You&apos;ll be the tournament head. Teams from any organization can request to join, and you approve them.
+                  </p>
+                )}
               </div>
             </CardBody>
           </Card>

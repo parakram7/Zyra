@@ -23,8 +23,21 @@ export const POSITION_LABELS: Record<Position, string> = {
 
 export type PreferredFoot = "Left" | "Right" | "Both";
 
+// A registered identity for a real person, independent of any one team.
+// Searchable by name so a coach adds "Aarav" once and every future squad
+// picks the same registered person instead of a disconnected new entry.
+export interface PlayerProfile {
+  id: string;
+  name: string;
+  dateOfBirth?: string | null;
+  nationality?: string | null;
+  preferredFoot?: PreferredFoot | null;
+  photoUrl?: string | null;
+}
+
 export interface Player {
   id: string;
+  profileId?: string | null; // links to the PlayerProfile this roster slot represents
   name: string;
   shortName?: string;
   teamId: string;
@@ -70,11 +83,12 @@ export interface KnockoutPair {
 
 export interface Competition {
   id: string;
-  orgId: string; // the school/club running this competition
+  orgId: string | null; // the school/club running this competition, or null for an independent tournament run by its own heads (see competition_admins)
   name: string;
   season: string;
   format: CompetitionFormat;
-  teamIds: string[]; // for "league": every team in the competition. for "groups": union of every group's teams.
+  teamIds: string[]; // APPROVED teams only. for "league": every team in the competition. for "groups": union of every group's teams.
+  pendingTeamIds: string[]; // teams that requested to join and are awaiting a head/org's approval
   groups?: CompetitionGroup[]; // only set when format is "groups"
   knockoutPairs?: KnockoutPair[]; // only set when format is "groups" — the first knockout round's draw
 }
@@ -125,7 +139,7 @@ export interface MatchScore {
 
 export interface Match {
   id: string;
-  orgId: string; // the school/club that scheduled this match
+  orgId: string | null; // the school/club that scheduled this match, or null for a fixture generated for an independent tournament
   competitionId: string | null;
   homeTeamId: string;
   awayTeamId: string;

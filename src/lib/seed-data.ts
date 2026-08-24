@@ -458,6 +458,7 @@ export const competitions: Competition[] = [
     name: "Metro Youth League",
     season: "2025/26",
     format: "league",
+    pendingTeamIds: [],
     teamIds: [TEAM_RIVERSIDE, TEAM_LAKESIDE, TEAM_EASTWOOD, TEAM_NORTHGATE],
   },
 ];

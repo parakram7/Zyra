@@ -8,42 +8,75 @@ import {
   organizationFromRow,
   organizationToRow,
   playerFromRow,
+  playerProfileFromRow,
+  playerProfileToRow,
   playerToRow,
   teamFromRow,
   teamToRow,
 } from "./mappers";
-import type { Competition, Match, MatchEvent, Organization, Player, Team, TeamLineup } from "@/lib/types";
+import type { Competition, Match, MatchEvent, Organization, Player, PlayerProfile, Team, TeamLineup } from "@/lib/types";
+
+export interface CompetitionAdmin {
+  competitionId: string;
+  userId: string;
+}
 
 export interface RemoteData {
   organizations: Organization[];
   teams: Team[];
   players: Player[];
+  playerProfiles: PlayerProfile[];
   competitions: Competition[];
+  competitionAdmins: CompetitionAdmin[];
   matches: Match[];
   followedTeamIds: string[];
 }
 
 export async function fetchAllData(userId: string | null): Promise<RemoteData> {
   const sb = getSupabase();
-  const [orgsRes, teamsRes, playersRes, competitionsRes, competitionTeamsRes, matchesRes, eventsRes, followsRes] =
-    await Promise.all([
-      sb.from("organizations").select("*"),
-      sb.from("teams").select("*"),
-      sb.from("players").select("*"),
-      sb.from("competitions").select("*"),
-      sb.from("competition_teams").select("*"),
-      sb.from("matches").select("*"),
-      sb.from("match_events").select("*"),
-      userId ? sb.from("team_follows").select("team_id").eq("user_id", userId) : Promise.resolve({ data: [], error: null }),
-    ]);
+  const [
+    orgsRes,
+    teamsRes,
+    playersRes,
+    profilesRes,
+    competitionsRes,
+    competitionTeamsRes,
+    competitionAdminsRes,
+    matchesRes,
+    eventsRes,
+    followsRes,
+  ] = await Promise.all([
+    sb.from("organizations").select("*"),
+    sb.from("teams").select("*"),
+    sb.from("players").select("*"),
+    sb.from("player_profiles").select("*"),
+    sb.from("competitions").select("*"),
+    sb.from("competition_teams").select("*"),
+    sb.from("competition_admins").select("*"),
+    sb.from("matches").select("*"),
+    sb.from("match_events").select("*"),
+    userId ? sb.from("team_follows").select("team_id").eq("user_id", userId) : Promise.resolve({ data: [], error: null }),
+  ]);
 
-  for (const res of [orgsRes, teamsRes, playersRes, competitionsRes, competitionTeamsRes, matchesRes, eventsRes, followsRes]) {
+  for (const res of [
+    orgsRes,
+    teamsRes,
+    playersRes,
+    profilesRes,
+    competitionsRes,
+    competitionTeamsRes,
+    competitionAdminsRes,
+    matchesRes,
+    eventsRes,
+    followsRes,
+  ]) {
     if (res.error) throw res.error;
   }
 
   const organizations = (orgsRes.data ?? []).map(organizationFromRow);
   const teams = (teamsRes.data ?? []).map(teamFromRow);
   const players = (playersRes.data ?? []).map(playerFromRow);
+  const playerProfiles = (profilesRes.data ?? []).map(playerProfileFromRow);
   const eventsByMatch = new Map<string, MatchEvent[]>();
   for (const row of eventsRes.data ?? []) {
     const event = matchEventFromRow(row);
@@ -56,18 +89,33 @@ export async function fetchAllData(userId: string | null): Promise<RemoteData> {
   );
 
   const teamIdsByCompetition = new Map<string, string[]>();
+  const pendingTeamIdsByCompetition = new Map<string, string[]>();
   for (const row of competitionTeamsRes.data ?? []) {
-    const list = teamIdsByCompetition.get(row.competition_id) ?? [];
+    const target = row.status === "approved" ? teamIdsByCompetition : pendingTeamIdsByCompetition;
+    const list = target.get(row.competition_id) ?? [];
     list.push(row.team_id);
-    teamIdsByCompetition.set(row.competition_id, list);
+    target.set(row.competition_id, list);
   }
   const competitions = (competitionsRes.data ?? []).map((row) =>
-    competitionFromRow(row, teamIdsByCompetition.get(row.id) ?? [])
+    competitionFromRow(row, teamIdsByCompetition.get(row.id) ?? [], pendingTeamIdsByCompetition.get(row.id) ?? [])
+  );
+
+  const competitionAdmins = ((competitionAdminsRes.data ?? []) as { competition_id: string; user_id: string }[]).map(
+    (r) => ({ competitionId: r.competition_id, userId: r.user_id })
   );
 
   const followedTeamIds = ((followsRes.data ?? []) as { team_id: string }[]).map((r) => r.team_id);
 
-  return { organizations, teams, players, competitions, matches, followedTeamIds };
+  return {
+    organizations,
+    teams,
+    players,
+    playerProfiles,
+    competitions,
+    competitionAdmins,
+    matches,
+    followedTeamIds,
+  };
 }
 
 export async function fetchMyOrgId(userId: string): Promise<string | null> {
@@ -116,9 +164,8 @@ export async function insertPlayer(player: Player) {
   if (error) throw error;
 }
 
-export async function insertCompetition(competition: Competition) {
-  const sb = getSupabase();
-  const { error } = await sb.from("competitions").insert({
+export async function insertCompetitionRow(competition: Competition) {
+  const { error } = await getSupabase().from("competitions").insert({
     id: competition.id,
     org_id: competition.orgId,
     name: competition.name,
@@ -128,12 +175,53 @@ export async function insertCompetition(competition: Competition) {
     knockout_pairs: competition.knockoutPairs ?? null,
   });
   if (error) throw error;
-  if (competition.teamIds.length > 0) {
-    const { error: linkError } = await sb
-      .from("competition_teams")
-      .insert(competition.teamIds.map((teamId) => ({ competition_id: competition.id, team_id: teamId })));
-    if (linkError) throw linkError;
-  }
+}
+
+export async function linkTeamsToCompetition(competitionId: string, teamIds: string[]) {
+  if (teamIds.length === 0) return;
+  const { error } = await getSupabase()
+    .from("competition_teams")
+    .insert(teamIds.map((teamId) => ({ competition_id: competitionId, team_id: teamId, status: "approved" })));
+  if (error) throw error;
+}
+
+// Convenience wrapper for the common (org-owned) case, where team links
+// can be inserted in the same breath as the competition itself.
+export async function insertCompetition(competition: Competition) {
+  await insertCompetitionRow(competition);
+  await linkTeamsToCompetition(competition.id, competition.teamIds);
+}
+
+export async function becomeCompetitionHead(competitionId: string, userId: string) {
+  const { error } = await getSupabase()
+    .from("competition_admins")
+    .insert({ competition_id: competitionId, user_id: userId, role: "head" });
+  if (error) throw error;
+}
+
+export async function requestTeamJoinCompetition(competitionId: string, teamId: string, userId: string) {
+  const { error } = await getSupabase()
+    .from("competition_teams")
+    .insert({ competition_id: competitionId, team_id: teamId, status: "pending", requested_by: userId });
+  if (error) throw error;
+}
+
+export async function setCompetitionTeamStatus(
+  competitionId: string,
+  teamId: string,
+  status: "approved" | "rejected"
+) {
+  const { error } = await getSupabase()
+    .from("competition_teams")
+    .update({ status })
+    .eq("competition_id", competitionId)
+    .eq("team_id", teamId);
+  if (error) throw error;
+}
+
+export async function insertPlayerProfile(profile: PlayerProfile, createdBy: string | null) {
+  const { error } = await getSupabase().from("player_profiles").insert(playerProfileToRow(profile, createdBy));
+  if (error) throw error;
 }
 
 export async function insertMatch(match: Match) {
@@ -191,7 +279,7 @@ export async function deleteMatchEvent(eventId: string) {
 export async function addTeamToCompetition(competitionId: string, teamId: string) {
   const { error } = await getSupabase()
     .from("competition_teams")
-    .insert({ competition_id: competitionId, team_id: teamId });
+    .insert({ competition_id: competitionId, team_id: teamId, status: "approved" });
   if (error) throw error;
 }
 

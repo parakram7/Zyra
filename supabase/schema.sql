@@ -63,6 +63,11 @@ create table if not exists players (
   created_at timestamptz not null default now()
 );
 create index if not exists players_team_id_idx on players(team_id);
+-- Soft reference to player_profiles(id) (defined further down this file,
+-- so no FK constraint — just an id the app looks up itself). Nullable:
+-- older roster entries created before player profiles existed have none.
+alter table players add column if not exists profile_id text;
+create index if not exists players_profile_id_idx on players(profile_id);
 
 -- ---------------------------------------------------------------------------
 -- Competitions
@@ -91,6 +96,44 @@ create table if not exists competition_teams (
   team_id text not null references teams(id) on delete cascade,
   primary key (competition_id, team_id)
 );
+-- A coach can request their team join a competition without needing to
+-- already control it; a head (or, for an org-owned competition, that
+-- org) approves or rejects the request.
+alter table competition_teams add column if not exists status text not null default 'approved' check (status in ('pending', 'approved', 'rejected'));
+alter table competition_teams add column if not exists requested_by uuid references auth.users(id);
+
+-- ---------------------------------------------------------------------------
+-- Competition admins — "heads" of a tournament, independent of any single
+-- school's organization. This is what lets a tournament like an inter-
+-- school cup exist as its own entity that no one org owns: whoever creates
+-- it becomes its first head, and only heads (not just any org) can manage
+-- its groups, knockout draw, fixtures, and team approvals.
+-- ---------------------------------------------------------------------------
+create table if not exists competition_admins (
+  competition_id text not null references competitions(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'head',
+  created_at timestamptz not null default now(),
+  primary key (competition_id, user_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- Player profiles — one registered identity per real player, searchable by
+-- name. A coach building a squad searches for "Aarav" and picks the right
+-- registered Aarav instead of retyping a brand new, disconnected roster
+-- entry every time they add him to a team.
+-- ---------------------------------------------------------------------------
+create table if not exists player_profiles (
+  id text primary key,
+  name text not null,
+  date_of_birth date,
+  nationality text,
+  preferred_foot text check (preferred_foot in ('Left', 'Right', 'Both')),
+  photo_url text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists player_profiles_name_idx on player_profiles (lower(name));
 
 -- ---------------------------------------------------------------------------
 -- Matches
@@ -186,6 +229,8 @@ alter table teams enable row level security;
 alter table players enable row level security;
 alter table competitions enable row level security;
 alter table competition_teams enable row level security;
+alter table competition_admins enable row level security;
+alter table player_profiles enable row level security;
 alter table matches enable row level security;
 alter table match_events enable row level security;
 alter table team_follows enable row level security;
@@ -231,6 +276,11 @@ drop policy if exists "authenticated write" on competitions;
 drop policy if exists "authenticated write" on competition_teams;
 drop policy if exists "authenticated write" on matches;
 drop policy if exists "authenticated write" on match_events;
+-- matches/match_events used to be writable only by the org that created
+-- them; replaced below by "either team's coach can manage this match",
+-- which also covers matches in a tournament no single org owns.
+drop policy if exists "org members write" on matches;
+drop policy if exists "org members write" on match_events;
 
 do $$
 begin
@@ -266,6 +316,18 @@ begin
       using (org_id is not null and exists (select 1 from org_members where org_id = competitions.org_id and user_id = auth.uid()))
       with check (org_id is not null and exists (select 1 from org_members where org_id = competitions.org_id and user_id = auth.uid()));
   end if;
+  -- An "independent" tournament (no owning org — e.g. an inter-school
+  -- cup) can be created by any signed-in user, who becomes its first
+  -- head via competition_admins below.
+  if not exists (select 1 from pg_policies where tablename = 'competitions' and policyname = 'authenticated create independent') then
+    create policy "authenticated create independent" on competitions for insert
+      with check (org_id is null and auth.role() = 'authenticated');
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'competitions' and policyname = 'tournament heads write') then
+    create policy "tournament heads write" on competitions for all
+      using (exists (select 1 from competition_admins where competition_id = competitions.id and user_id = auth.uid()))
+      with check (exists (select 1 from competition_admins where competition_id = competitions.id and user_id = auth.uid()));
+  end if;
 
   if not exists (select 1 from pg_policies where tablename = 'competition_teams' and policyname = 'public read') then
     create policy "public read" on competition_teams for select using (true);
@@ -281,28 +343,94 @@ begin
         where c.id = competition_teams.competition_id and om.user_id = auth.uid()
       ));
   end if;
+  -- Any coach may request their own team join a competition (status
+  -- stays 'pending' until a head or org approves it via the policies
+  -- above/below).
+  if not exists (select 1 from pg_policies where tablename = 'competition_teams' and policyname = 'team owners request join') then
+    create policy "team owners request join" on competition_teams for insert
+      with check (
+        status = 'pending'
+        and requested_by = auth.uid()
+        and exists (
+          select 1 from teams t join org_members om on om.org_id = t.org_id
+          where t.id = competition_teams.team_id and om.user_id = auth.uid()
+        )
+      );
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'competition_teams' and policyname = 'tournament heads manage teams') then
+    create policy "tournament heads manage teams" on competition_teams for all
+      using (exists (
+        select 1 from competition_admins
+        where competition_id = competition_teams.competition_id and user_id = auth.uid()
+      ))
+      with check (exists (
+        select 1 from competition_admins
+        where competition_id = competition_teams.competition_id and user_id = auth.uid()
+      ));
+  end if;
+
+  if not exists (select 1 from pg_policies where tablename = 'competition_admins' and policyname = 'public read') then
+    create policy "public read" on competition_admins for select using (true);
+  end if;
+  -- You may add yourself as a tournament's founding head, but not join
+  -- one that already has heads (no invite system yet).
+  if not exists (select 1 from pg_policies where tablename = 'competition_admins' and policyname = 'found new tournament head') then
+    create policy "found new tournament head" on competition_admins for insert
+      with check (
+        user_id = auth.uid()
+        and not exists (select 1 from competition_admins ca2 where ca2.competition_id = competition_admins.competition_id)
+      );
+  end if;
+
+  if not exists (select 1 from pg_policies where tablename = 'player_profiles' and policyname = 'public read') then
+    create policy "public read" on player_profiles for select using (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'player_profiles' and policyname = 'authenticated create') then
+    create policy "authenticated create" on player_profiles for insert with check (auth.role() = 'authenticated');
+  end if;
 
   if not exists (select 1 from pg_policies where tablename = 'matches' and policyname = 'public read') then
     create policy "public read" on matches for select using (true);
   end if;
-  if not exists (select 1 from pg_policies where tablename = 'matches' and policyname = 'org members write') then
-    create policy "org members write" on matches for all
-      using (org_id is not null and exists (select 1 from org_members where org_id = matches.org_id and user_id = auth.uid()))
-      with check (org_id is not null and exists (select 1 from org_members where org_id = matches.org_id and user_id = auth.uid()));
+  -- Either team's coach can manage a match between them (previously only
+  -- whichever org created it could) — and, for a tournament fixture that
+  -- no single org owns, that tournament's heads can too.
+  if not exists (select 1 from pg_policies where tablename = 'matches' and policyname = 'team coaches write') then
+    create policy "team coaches write" on matches for all
+      using (
+        exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = matches.home_team_id and om.user_id = auth.uid())
+        or exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = matches.away_team_id and om.user_id = auth.uid())
+        or (matches.competition_id is not null and exists (select 1 from competition_admins where competition_id = matches.competition_id and user_id = auth.uid()))
+      )
+      with check (
+        exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = matches.home_team_id and om.user_id = auth.uid())
+        or exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = matches.away_team_id and om.user_id = auth.uid())
+        or (matches.competition_id is not null and exists (select 1 from competition_admins where competition_id = matches.competition_id and user_id = auth.uid()))
+      );
   end if;
 
   if not exists (select 1 from pg_policies where tablename = 'match_events' and policyname = 'public read') then
     create policy "public read" on match_events for select using (true);
   end if;
-  if not exists (select 1 from pg_policies where tablename = 'match_events' and policyname = 'org members write') then
-    create policy "org members write" on match_events for all
+  if not exists (select 1 from pg_policies where tablename = 'match_events' and policyname = 'team coaches write') then
+    create policy "team coaches write" on match_events for all
       using (exists (
-        select 1 from matches m join org_members om on om.org_id = m.org_id
-        where m.id = match_events.match_id and om.user_id = auth.uid()
+        select 1 from matches m
+        where m.id = match_events.match_id
+        and (
+          exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = m.home_team_id and om.user_id = auth.uid())
+          or exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = m.away_team_id and om.user_id = auth.uid())
+          or (m.competition_id is not null and exists (select 1 from competition_admins where competition_id = m.competition_id and user_id = auth.uid()))
+        )
       ))
       with check (exists (
-        select 1 from matches m join org_members om on om.org_id = m.org_id
-        where m.id = match_events.match_id and om.user_id = auth.uid()
+        select 1 from matches m
+        where m.id = match_events.match_id
+        and (
+          exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = m.home_team_id and om.user_id = auth.uid())
+          or exists (select 1 from teams t join org_members om on om.org_id = t.org_id where t.id = m.away_team_id and om.user_id = auth.uid())
+          or (m.competition_id is not null and exists (select 1 from competition_admins where competition_id = m.competition_id and user_id = auth.uid()))
+        )
       ));
   end if;
 
